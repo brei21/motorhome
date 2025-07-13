@@ -40,7 +40,7 @@ async def setup_commands(application: Application):
     await application.bot.set_my_commands([
         BotCommand("menu", "Menú principal"),
         BotCommand("start", "Reiniciar bot"),
-        BotCommand("daily", "Registro manual del estado diario"),
+        BotCommand("daily", "Registro manual de la ubicación diaria"),
         BotCommand("km", "Registrar kilometraje"),
         BotCommand("maintenance", "Registrar mantenimiento"),
         BotCommand("fuel", "Registrar repostaje"),

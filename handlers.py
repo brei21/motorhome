@@ -147,7 +147,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 ¡Hola {user.first_name}! ¿Qué quieres hacer hoy?
 
 Este bot te ayudará a:
-• 📅 Registrar el estado diario de tu autocaravana
+• 📍 Registrar la ubicación diaria de tu autocaravana
 • 📊 Ver estadísticas de uso
 • 🛣️ Controlar el kilometraje
 • 🔧 Gestionar mantenimientos
@@ -165,24 +165,26 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 📚 **Ayuda del Bot de Autocaravana**
 
 **Comandos disponibles:**
-• `/start` - Menú principal
+• `/menu` - Menú principal
+• `/start` - Reiniciar bot
 • `/daily` - Registro manual del estado diario
 • `/km` - Registrar kilometraje
 • `/maintenance` - Registrar mantenimiento
+• `/fuel` - Registrar repostaje
 • `/stats` - Ver estadísticas
 • `/help` - Esta ayuda
 
 **Funcionalidades:**
 • 📅 **Registro automático**: Todos los días a las 09:00 AM te preguntará dónde está la autocaravana
-• 📊 **Estadísticas**: Gráficos y listas de todos los registros
-• 🛣️ **Kilometraje**: Control del odómetro
-• 🔧 **Mantenimiento**: Registro de reparaciones y mejoras
-• ⛽ **Repostajes**: Registro de combustible y costes
+• 📊 **Estadísticas**: Listas de todos los registros
+• 🛣️ **Kilometraje**: Control del odómetro total
+• 🔧 **Mantenimiento**: Registro de reparaciones y mejoras con costes
+• ⛽ **Repostajes**: Registro de combustible con importe y precio por litro
 
 **Estados de la autocaravana:**
-• 🚗 **De viaje** - Registra ubicación GPS
-• 🅿️ **En parking** - Solo registra estado
-• 🏠 **Casa vacaciones** - Solo registra estado
+• 🚗 **De viaje** - Registra ubicación por texto
+• 🅿️ **En parking** - La autocaravana está en un parking
+• 🏠 **Casa vacaciones** - La autocaravana está en una casa de vacaciones
 
 ¿Necesitas ayuda con algo específico?
 """
@@ -205,11 +207,17 @@ async def km_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(
-            "🛣️ **Registrar Kilometraje**\n\nPor favor, introduce el número de kilómetros:"
+            "🛣️ **Registrar Kilometraje**\n\nPor favor, introduce el número de kilómetros:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Volver", callback_data="kilometers")]
+            ])
         )
     else:
         await update.message.reply_text(
-            "🛣️ **Registrar Kilometraje**\n\nPor favor, introduce el número de kilómetros:"
+            "🛣️ **Registrar Kilometraje**\n\nPor favor, introduce el número de kilómetros:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Volver", callback_data="kilometers")]
+            ])
         )
     return ASKING_KILOMETERS
 
@@ -226,11 +234,18 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /stats - Ver estadísticas"""
-    await update.callback_query.answer()
-    await update.callback_query.edit_message_text(
-        "📊 **Estadísticas**\n\n¿Qué estadísticas quieres ver?",
-        reply_markup=get_stats_keyboard()
-    )
+    # Determinar si es un comando o un callback
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(
+            "📊 **Estadísticas**\n\n¿Qué estadísticas quieres ver?",
+            reply_markup=get_stats_keyboard()
+        )
+    else:
+        await update.message.reply_text(
+            "📊 **Estadísticas**\n\n¿Qué estadísticas quieres ver?",
+            reply_markup=get_stats_keyboard()
+        )
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Maneja todos los callbacks de botones"""
@@ -264,10 +279,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif data == "add_fuel":
         # Este callback será manejado por el ConversationHandler
         pass
+    elif data == "add_kilometers":
+        # Este callback será manejado por el ConversationHandler
+        pass
     elif data == "list_fuel":
         await show_fuel_list(query)
     elif data.startswith("maintenance_"):
         await handle_maintenance_type_selection(query, data.replace("maintenance_", ""))
+    elif data == "cancel_location":
+        await cancel_location_callback(update, context)
     elif data == "help":
         await show_help(query)
 
@@ -290,11 +310,11 @@ async def handle_status_selection(query, context, status: str) -> None:
     today = datetime.now().strftime('%Y-%m-%d')
     
     if status == 'travel':
-        # Para viajes, iniciar conversación de ubicación por texto
+        # Para viajes, usar el ConversationHandler de ubicación
         await query.edit_message_text(
             "🚗 **De viaje**\n\nEscribe la ubicación donde te encuentras:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_location")]
+                [InlineKeyboardButton("🔙 Volver", callback_data="cancel_location")]
             ])
         )
         # Guardar el estado en el contexto para la conversación
@@ -757,7 +777,7 @@ async def add_location_callback(update: Update, context: ContextTypes.DEFAULT_TY
         "Por favor, escribe tu ubicación actual:\n\n"
         "Ejemplo: 'Madrid, España' o 'Camping Los Pinos, Valencia'",
         reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔙 Cancelar", callback_data="cancel_location")
+            InlineKeyboardButton("🔙 Volver", callback_data="cancel_location")
         ]])
     )
     
@@ -844,10 +864,16 @@ async def handle_gps_location(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Funciones para manejar repostajes
 async def add_fuel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Callback para añadir repostaje desde el menú"""
-    await update.callback_query.answer()
-    await update.callback_query.edit_message_text(
-        "⛽ **Registrar Repostaje**\n\nPor favor, introduce el importe del repostaje en euros:"
-    )
+    # Determinar si es un comando o un callback
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(
+            "⛽ **Registrar Repostaje**\n\nPor favor, introduce el importe del repostaje en euros:"
+        )
+    else:
+        await update.message.reply_text(
+            "⛽ **Registrar Repostaje**\n\nPor favor, introduce el importe del repostaje en euros:"
+        )
     return ASKING_FUEL_AMOUNT
 
 async def handle_fuel_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
