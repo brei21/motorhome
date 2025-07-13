@@ -1,0 +1,22 @@
+app = "motorhomebot"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  TZ = "Europe/Madrid"
+
+[processes]
+  bot = "python -m motorhomebot.main"
+
+[mounts]
+  source = "db"
+  destination = "/data"
+
+[[services]]
+  processes = ["bot"]
+  internal_port = 8080          # no sirve HTTP, pero evita health-check blocking
+  protocol = "tcp"
+  auto_stop_machines = "off"
+  auto_start_machines = false 
