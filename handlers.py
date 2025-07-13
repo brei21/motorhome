@@ -17,6 +17,15 @@ ASKING_MAINTENANCE_DESCRIPTION = 4
 ASKING_MAINTENANCE_COST = 5
 ASKING_FUEL_AMOUNT = 6
 ASKING_FUEL_PRICE = 7
+# Estados para recordatorios
+ASKING_REMINDER_TYPE = 8
+ASKING_REMINDER_TEMPLATE = 9
+ASKING_REMINDER_DESCRIPTION = 10
+ASKING_REMINDER_FREQUENCY = 11
+ASKING_REMINDER_LAST_DONE = 12
+CONFIRM_REMINDER = 13
+# Estados para completar recordatorios
+ASKING_COMPLETION_DATE = 14
 
 # Emojis y textos
 STATUS_EMOJIS = {
@@ -49,6 +58,7 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("⛽ Repostajes", callback_data="fuel")
         ],
         [
+            InlineKeyboardButton("🔔 Recordatorios", callback_data="reminders"),
             InlineKeyboardButton("📊 Estadísticas", callback_data="stats")
         ],
         [
@@ -152,6 +162,7 @@ Este bot te ayudará a:
 • 🛣️ Controlar el kilometraje
 • 🔧 Gestionar mantenimientos
 • ⛽ Registrar repostajes
+• 🔔 Gestionar recordatorios de mantenimiento
 """
     
     await update.message.reply_text(
@@ -180,13 +191,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • 🛣️ **Kilometraje**: Control del odómetro total
 • 🔧 **Mantenimiento**: Registro de reparaciones y mejoras con costes
 • ⛽ **Repostajes**: Registro de combustible con importe y precio por litro
+• 🔔 **Recordatorios**: Gestión de recordatorios de mantenimiento por kilometraje y tiempo
 
 **Estados de la autocaravana:**
 • 🚗 **De viaje** - Registra ubicación por texto
 • 🅿️ **En parking** - La autocaravana está en un parking
 • 🏠 **Casa vacaciones** - La autocaravana está en una casa de vacaciones
-
-¿Necesitas ayuda con algo específico?
 """
     
     await update.message.reply_text(
@@ -266,6 +276,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await show_maintenance_menu(query)
     elif data == "fuel":
         await show_fuel_menu(query)
+    elif data == "reminders":
+        await show_reminders_menu(query)
     elif data == "stats":
         await show_stats_menu(query)
     elif data.startswith("stats_"):
@@ -282,10 +294,20 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif data == "add_kilometers":
         # Este callback será manejado por el ConversationHandler
         pass
+    elif data == "add_reminder":
+        await add_reminder_callback(update, context)
+    elif data == "complete_reminder":
+        await show_complete_reminder_menu(query)
+    elif data.startswith("complete_reminder_"):
+        await handle_complete_reminder(update, context)
+    elif data == "list_reminders":
+        await show_reminders_list(query)
     elif data == "list_fuel":
         await show_fuel_list(query)
     elif data.startswith("maintenance_"):
         await handle_maintenance_type_selection(query, data.replace("maintenance_", ""))
+    elif data in ["completion_today", "completion_other_date"]:
+        await handle_completion_date(update, context)
     elif data == "cancel_location":
         await cancel_location_callback(update, context)
     elif data == "help":
@@ -593,25 +615,27 @@ async def show_help(query) -> None:
 📚 **Ayuda del Bot de Autocaravana**
 
 **Comandos disponibles:**
-• `/start` - Menú principal
+• `/menu` - Menú principal
+• `/start` - Reiniciar bot
 • `/daily` - Registro manual del estado diario
 • `/km` - Registrar kilometraje
 • `/maintenance` - Registrar mantenimiento
+• `/fuel` - Registrar repostaje
 • `/stats` - Ver estadísticas
 • `/help` - Esta ayuda
 
 **Funcionalidades:**
 • 📅 **Registro automático**: Todos los días a las 09:00 AM te preguntará dónde está la autocaravana
-• 📊 **Estadísticas**: Gráficos y listas de todos los registros
-• 🛣️ **Kilometraje**: Control del odómetro
-• 🔧 **Mantenimiento**: Registro de reparaciones y mejoras
+• 📊 **Estadísticas**: Listas de todos los registros
+• 🛣️ **Kilometraje**: Control del odómetro total
+• 🔧 **Mantenimiento**: Registro de reparaciones y mejoras con costes
+• ⛽ **Repostajes**: Registro de combustible con importe y precio por litro
+• 🔔 **Recordatorios**: Gestión de recordatorios de mantenimiento por kilometraje y tiempo
 
 **Estados de la autocaravana:**
-• 🚗 **De viaje** - Registra ubicación GPS
-• 🅿️ **En parking** - Solo registra estado
-• 🏠 **Casa vacaciones** - Solo registra estado
-
-¿Necesitas ayuda con algo específico?
+• 🚗 **De viaje** - Registra ubicación por texto
+• 🅿️ **En parking** - La autocaravana está en un parking
+• 🏠 **Casa vacaciones** - La autocaravana está en una casa de vacaciones
 """
     
     await query.edit_message_text(
@@ -944,6 +968,480 @@ async def cancel_fuel_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.callback_query.answer()
     await update.callback_query.edit_message_text(
         "❌ Registro de repostaje cancelado.",
+        reply_markup=get_main_menu_keyboard()
+    )
+    return ConversationHandler.END
+
+async def show_reminders_menu(query) -> None:
+    """Muestra el menú de recordatorios de mantenimiento"""
+    reminders = db.get_maintenance_reminders(status='active')
+    current_odometer = db.get_current_odometer()
+    
+    text = "🔔 **Recordatorios de Mantenimiento**\n\n"
+    
+    if not reminders:
+        text += "✅ No hay recordatorios activos.\n\n"
+        text += "Puedes crear recordatorios para:\n"
+        text += "• Cambio de aceite (cada 10.000 km)\n"
+        text += "• Filtros de aire (cada 15.000 km)\n"
+        text += "• ITV anual\n"
+        text += "• Mantenimientos personalizados\n"
+    else:
+        text += "📋 **Recordatorios activos:**\n\n"
+        
+        for reminder in reminders:
+            emoji = "🛣️" if reminder['type'] == 'km' else "📅"
+            text += f"{emoji} **{reminder['description']}**\n"
+            
+            if reminder['type'] == 'km' and current_odometer:
+                km_remaining = reminder['next_due_km'] - current_odometer
+                if km_remaining <= 0:
+                    text += f"   ⚠️ **¡VENCIDO!** ({abs(km_remaining):,} km de retraso)\n".replace(',', '.')
+                else:
+                    text += f"   📍 {km_remaining:,} km restantes\n".replace(',', '.')
+            elif reminder['type'] == 'time' and reminder['next_due_date']:
+                from datetime import datetime
+                due_date = datetime.strptime(reminder['next_due_date'], '%Y-%m-%d')
+                today = datetime.now()
+                days_remaining = (due_date - today).days
+                
+                if days_remaining <= 0:
+                    text += f"   ⚠️ **¡VENCIDO!** ({abs(days_remaining)} días de retraso)\n"
+                else:
+                    text += f"   📅 {days_remaining} días restantes\n"
+            
+            text += "\n"
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Añadir recordatorio", callback_data="add_reminder")],
+        [InlineKeyboardButton("✅ Marcar completado", callback_data="complete_reminder")],
+        [InlineKeyboardButton("📋 Ver todos", callback_data="list_reminders")],
+        [InlineKeyboardButton("🔙 Volver", callback_data="main_menu")]
+    ])
+    
+    await query.edit_message_text(text, reply_markup=keyboard) 
+
+async def show_reminders_list(query) -> None:
+    """Muestra la lista completa de recordatorios"""
+    reminders = db.get_maintenance_reminders()
+    if not reminders:
+        await query.edit_message_text(
+            "🔔 **Recordatorios de Mantenimiento**\n\nNo hay recordatorios registrados.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Volver", callback_data="reminders")]
+            ])
+        )
+        return
+    text = "🔔 **Todos los Recordatorios**\n\n"
+    for reminder in reminders:
+        emoji = "🛣️" if reminder['type'] == 'km' else "📅"
+        status_emoji = "✅" if reminder['status'] == 'completed' else "⚠️" if reminder['status'] == 'overdue' else "⏳"
+        text += f"{emoji} **{reminder['description']}** {status_emoji}\n"
+        if reminder['type'] == 'km':
+            if reminder['last_done_km']:
+                text += f"   Último: {reminder['last_done_km']:,} km\n".replace(',', '.')
+            if reminder['next_due_km']:
+                text += f"   Próximo: {reminder['next_due_km']:,} km\n".replace(',', '.')
+        elif reminder['type'] == 'time':
+            from datetime import datetime
+            if reminder['last_done_date']:
+                last_date = datetime.strptime(reminder['last_done_date'], '%Y-%m-%d').strftime('%d-%m-%Y')
+                text += f"   Último: {last_date}\n"
+            if reminder['next_due_date']:
+                next_date = datetime.strptime(reminder['next_due_date'], '%Y-%m-%d').strftime('%d-%m-%Y')
+                text += f"   Próximo: {next_date}\n"
+        text += f"   Frecuencia: {reminder['frequency']}\n\n"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Volver", callback_data="reminders")]
+    ])
+    await query.edit_message_text(text, reply_markup=keyboard)
+
+async def show_complete_reminder_menu(query) -> None:
+    """Muestra el menú para marcar recordatorios como completados"""
+    reminders = db.get_maintenance_reminders(status='active')
+    if not reminders:
+        await query.edit_message_text(
+            "✅ No hay recordatorios activos para marcar como completados.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Volver", callback_data="reminders")]
+            ])
+        )
+        return
+    text = "✅ **Marcar como Completado**\n\nSelecciona el recordatorio que has completado:\n\n"
+    keyboard_buttons = []
+    for reminder in reminders:
+        emoji = "🛣️" if reminder['type'] == 'km' else "📅"
+        button_text = f"{emoji} {reminder['description']}"
+        callback_data = f"complete_reminder_{reminder['id']}"
+        keyboard_buttons.append([InlineKeyboardButton(button_text, callback_data=callback_data)])
+    keyboard_buttons.append([InlineKeyboardButton("🔙 Volver", callback_data="reminders")])
+    keyboard = InlineKeyboardMarkup(keyboard_buttons)
+    await query.edit_message_text(text, reply_markup=keyboard)
+
+async def handle_complete_reminder(update, context):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    if data.startswith("complete_reminder_"):
+        reminder_id = int(data.split('_')[-1])
+        # Guardar el ID del recordatorio en el contexto
+        context.user_data['completing_reminder_id'] = reminder_id
+        # Obtener información del recordatorio
+        reminders = db.get_maintenance_reminders()
+        reminder = next((r for r in reminders if r['id'] == reminder_id), None)
+        if not reminder:
+            await query.edit_message_text(
+                "❌ Recordatorio no encontrado.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Volver", callback_data="reminders")]
+                ])
+            )
+            return
+        context.user_data['completing_reminder'] = reminder
+        # Preguntar fecha de completado
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Hoy", callback_data="completion_today")],
+            [InlineKeyboardButton("📅 Otra fecha", callback_data="completion_other_date")],
+            [InlineKeyboardButton("🔙 Volver", callback_data="complete_reminder")]
+        ])
+        await query.edit_message_text(
+            f"¿Cuándo completaste **{reminder['description']}**?",
+            reply_markup=keyboard
+        )
+        return ASKING_COMPLETION_DATE
+
+async def handle_completion_date(update, context):
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        data = query.data
+        if data == "completion_today":
+            from datetime import datetime
+            completion_date = datetime.now().strftime('%Y-%m-%d')
+            await complete_reminder_with_date(update, context, completion_date)
+        elif data == "completion_other_date":
+            await query.edit_message_text(
+                "Introduce la fecha de completado en formato DD-MM-AAAA (por ejemplo: 15-07-2024):",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Volver", callback_data="complete_reminder")]
+                ])
+            )
+            return ASKING_COMPLETION_DATE
+    else:
+        # Usuario introdujo fecha manualmente
+        completion_date_text = update.message.text.strip()
+        try:
+            from datetime import datetime
+            completion_date_obj = datetime.strptime(completion_date_text, '%d-%m-%Y')
+            completion_date = completion_date_obj.strftime('%Y-%m-%d')
+            await complete_reminder_with_date(update, context, completion_date)
+        except Exception:
+            await update.message.reply_text(
+                "❌ Formato de fecha incorrecto. Introduce la fecha en formato DD-MM-AAAA (por ejemplo: 15-07-2024):",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Volver", callback_data="complete_reminder")]
+                ])
+            )
+            return ASKING_COMPLETION_DATE
+
+async def complete_reminder_with_date(update, context, completion_date):
+    reminder = context.user_data.get('completing_reminder')
+    reminder_id = context.user_data.get('completing_reminder_id')
+    if not reminder or not reminder_id:
+        await (update.callback_query.edit_message_text if update.callback_query else update.message.reply_text)(
+            "❌ Error: Recordatorio no encontrado.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Volver", callback_data="reminders")]
+            ])
+        )
+        return ConversationHandler.END
+    # Calcular próxima fecha
+    from datetime import datetime
+    from dateutil.relativedelta import relativedelta
+    completion_date_obj = datetime.strptime(completion_date, '%Y-%m-%d')
+    if reminder['type'] == 'km':
+        # Para recordatorios por kilometraje, actualizar kilometraje
+        current_odometer = db.get_current_odometer() or 0
+        next_due_km = current_odometer + reminder['frequency']
+        db.update_maintenance_reminder(
+            reminder_id, 
+            status='completed',
+            last_done_km=current_odometer,
+            next_due_km=next_due_km
+        )
+        completion_display = completion_date_obj.strftime('%d-%m-%Y')
+        resumen = f"✅ **{reminder['description']}** marcado como completado.\n\nFecha de completado: {completion_display}\nPróximo mantenimiento: {next_due_km:,} km".replace(',', '.')
+    else:
+        # Para recordatorios por tiempo, calcular próxima fecha
+        next_due_date_obj = completion_date_obj + relativedelta(months=reminder['frequency'])
+        next_due_date = next_due_date_obj.strftime('%Y-%m-%d')
+        db.update_maintenance_reminder(
+            reminder_id, 
+            status='completed',
+            last_done_date=completion_date,
+            next_due_date=next_due_date
+        )
+        completion_display = completion_date_obj.strftime('%d-%m-%Y')
+        next_due_display = next_due_date_obj.strftime('%d-%m-%Y')
+        resumen = f"✅ **{reminder['description']}** marcado como completado.\n\nFecha de completado: {completion_display}\nPróximo mantenimiento: {next_due_display}"
+    # Limpiar datos temporales
+    context.user_data.clear()
+    await (update.callback_query.edit_message_text if update.callback_query else update.message.reply_text)(
+        resumen,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Volver", callback_data="reminders")]
+        ])
+    )
+    return ConversationHandler.END
+
+# Sugerencias típicas
+REMINDER_KM_TEMPLATES = [
+    ("Cambio de aceite", 10000),
+    ("Filtros de aire", 15000),
+    ("Filtros de combustible", 20000),
+    ("Neumáticos", 50000),
+    ("Otro", None)
+]
+REMINDER_TIME_TEMPLATES = [
+    ("ITV", 12),
+    ("Seguro", 12),
+    ("Revisión general", 12),
+    ("Otro", None)
+]
+
+async def add_reminder_callback(update, context):
+    query = update.callback_query
+    await query.answer()
+    # Preguntar tipo de recordatorio
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛣️ Por kilometraje", callback_data="reminder_type_km")],
+        [InlineKeyboardButton("📅 Por tiempo", callback_data="reminder_type_time")],
+        [InlineKeyboardButton("🔧 Personalizado", callback_data="reminder_type_custom")],
+        [InlineKeyboardButton("🔙 Volver", callback_data="reminders")]
+    ])
+    await query.edit_message_text(
+        "➕ **Añadir Recordatorio**\n\n¿Qué tipo de recordatorio quieres crear?",
+        reply_markup=keyboard
+    )
+    return ASKING_REMINDER_TYPE
+
+async def handle_reminder_type(update, context):
+    query = update.callback_query
+    await query.answer()
+    t = query.data
+    context.user_data['reminder_type'] = t
+    if t == "reminder_type_km":
+        # Sugerir plantillas por km
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"{name} ({km:,} km)".replace(',', '.'), callback_data=f"template_km_{i}")]
+            for i, (name, km) in enumerate(REMINDER_KM_TEMPLATES)
+        ] + [[InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+        await query.edit_message_text(
+            "¿Qué mantenimiento quieres registrar?",
+            reply_markup=keyboard
+        )
+        return ASKING_REMINDER_TEMPLATE
+    elif t == "reminder_type_time":
+        # Sugerir plantillas por tiempo
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"{name} ({months} meses)" if months else name, callback_data=f"template_time_{i}")]
+            for i, (name, months) in enumerate(REMINDER_TIME_TEMPLATES)
+        ] + [[InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+        await query.edit_message_text(
+            "¿Qué mantenimiento quieres registrar?",
+            reply_markup=keyboard
+        )
+        return ASKING_REMINDER_TEMPLATE
+    else:
+        # Personalizado
+        await query.edit_message_text(
+            "Escribe una breve descripción del recordatorio:",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+        )
+        return ASKING_REMINDER_DESCRIPTION
+
+async def handle_reminder_template(update, context):
+    query = update.callback_query
+    await query.answer()
+    t = context.user_data['reminder_type']
+    idx = int(query.data.split('_')[-1])
+    if t == "reminder_type_km":
+        name, km = REMINDER_KM_TEMPLATES[idx]
+        context.user_data['reminder_description'] = name
+        context.user_data['reminder_frequency'] = km
+        if name == "Otro":
+            await query.edit_message_text(
+                "Escribe una breve descripción del recordatorio:",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+            )
+            return ASKING_REMINDER_DESCRIPTION
+        else:
+            await query.edit_message_text(
+                f"¿Cada cuántos kilómetros quieres que se repita? (por defecto: {km:,} km)",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Usar valor por defecto", callback_data="use_default_km")], [InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+            )
+            return ASKING_REMINDER_FREQUENCY
+    elif t == "reminder_type_time":
+        name, months = REMINDER_TIME_TEMPLATES[idx]
+        context.user_data['reminder_description'] = name
+        context.user_data['reminder_frequency'] = months
+        if name == "Otro":
+            await query.edit_message_text(
+                "Escribe una breve descripción del recordatorio:",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+            )
+            return ASKING_REMINDER_DESCRIPTION
+        else:
+            await query.edit_message_text(
+                f"¿Cada cuántos meses quieres que se repita? (por defecto: {months} meses)",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Usar valor por defecto", callback_data="use_default_time")], [InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+            )
+            return ASKING_REMINDER_FREQUENCY
+
+async def handle_reminder_description(update, context):
+    desc = update.message.text.strip()
+    context.user_data['reminder_description'] = desc
+    t = context.user_data['reminder_type']
+    if t == "reminder_type_km":
+        await update.message.reply_text(
+            "¿Cada cuántos kilómetros quieres que se repita?",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+        )
+        return ASKING_REMINDER_FREQUENCY
+    elif t == "reminder_type_time":
+        await update.message.reply_text(
+            "¿Cada cuántos meses quieres que se repita?",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+        )
+        return ASKING_REMINDER_FREQUENCY
+    else:
+        await update.message.reply_text(
+            "¿La frecuencia será por kilómetros, por tiempo o ambos? (escribe 'km', 'meses' o 'ambos')",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]])
+        )
+        return ASKING_REMINDER_FREQUENCY
+
+async def handle_reminder_frequency(update, context):
+    t = context.user_data['reminder_type']
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        if query.data == "use_default_km":
+            freq = context.user_data['reminder_frequency']
+        elif query.data == "use_default_time":
+            freq = context.user_data['reminder_frequency']
+        else:
+            freq = None
+        context.user_data['reminder_frequency'] = freq
+        # Preguntar último realizado
+        if t == "reminder_type_km":
+            await query.edit_message_text(
+                "¿Cuándo fue el último mantenimiento? (escribe el número de kilómetros o deja vacío si no lo recuerdas)",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("No lo recuerdo", callback_data="no_last_done")]])
+            )
+        else:
+            await query.edit_message_text(
+                "¿Cuándo fue el último mantenimiento? (escribe la fecha en formato AAAA-MM-DD o deja vacío si no lo recuerdas)",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("No lo recuerdo", callback_data="no_last_done")]])
+            )
+        return ASKING_REMINDER_LAST_DONE
+    else:
+        freq = update.message.text.strip()
+        try:
+            freq = int(freq)
+        except Exception:
+            await update.message.reply_text("Por favor, introduce un número válido.")
+            return ASKING_REMINDER_FREQUENCY
+        context.user_data['reminder_frequency'] = freq
+        # Preguntar último realizado
+        if t == "reminder_type_km":
+            await update.message.reply_text(
+                "¿Cuándo fue el último mantenimiento? (escribe el número de kilómetros o deja vacío si no lo recuerdas)",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("No lo recuerdo", callback_data="no_last_done")]])
+            )
+        else:
+            await update.message.reply_text(
+                "¿Cuándo fue el último mantenimiento? (escribe la fecha en formato AAAA-MM-DD o deja vacío si no lo recuerdas)",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("No lo recuerdo", callback_data="no_last_done")]])
+            )
+        return ASKING_REMINDER_LAST_DONE
+
+async def handle_reminder_last_done(update, context):
+    t = context.user_data['reminder_type']
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        last_done = None
+    else:
+        last_done = update.message.text.strip()
+        if not last_done:
+            last_done = None
+    # Guardar y calcular próximo
+    desc = context.user_data['reminder_description']
+    freq = context.user_data['reminder_frequency']
+    if t == "reminder_type_km":
+        if last_done:
+            try:
+                last_done_km = int(last_done)
+            except Exception:
+                await update.message.reply_text("Por favor, introduce un número válido de kilómetros.")
+                return ASKING_REMINDER_LAST_DONE
+        else:
+            last_done_km = db.get_current_odometer() or 0
+        next_due_km = last_done_km + freq
+        context.user_data['last_done_km'] = last_done_km
+        context.user_data['next_due_km'] = next_due_km
+        resumen = f"{desc} cada {freq:,} km\nÚltimo: {last_done_km:,} km\nPróximo: {next_due_km:,} km".replace(',', '.')
+    else:
+        from datetime import datetime
+        from dateutil.relativedelta import relativedelta
+        if last_done:
+            # Validar formato DD-MM-AAAA
+            try:
+                last_done_date_obj = datetime.strptime(last_done, '%d-%m-%Y')
+                last_done_date = last_done_date_obj.strftime('%Y-%m-%d')
+            except Exception:
+                await update.message.reply_text("Por favor, introduce la fecha en formato DD-MM-AAAA (por ejemplo: 15-07-2024).")
+                return ASKING_REMINDER_LAST_DONE
+        else:
+            last_done_date_obj = datetime.now()
+            last_done_date = last_done_date_obj.strftime('%Y-%m-%d')
+        next_due_date_obj = last_done_date_obj + relativedelta(months=freq)
+        next_due_date = next_due_date_obj.strftime('%Y-%m-%d')
+        context.user_data['last_done_date'] = last_done_date
+        context.user_data['next_due_date'] = next_due_date
+        # Formatear fechas para mostrar en DD-MM-AAAA
+        last_done_display = last_done_date_obj.strftime('%d-%m-%Y')
+        next_due_display = next_due_date_obj.strftime('%d-%m-%Y')
+        resumen = f"{desc} cada {freq} meses\nÚltimo: {last_done_display}\nPróximo: {next_due_display}"
+    # Confirmar
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Confirmar y guardar", callback_data="confirm_reminder")],
+        [InlineKeyboardButton("🔙 Volver", callback_data="add_reminder")]
+    ])
+    await (update.callback_query.edit_message_text if update.callback_query else update.message.reply_text)(
+        f"¿Quieres guardar este recordatorio?\n\n{resumen}",
+        reply_markup=keyboard
+    )
+    return CONFIRM_REMINDER
+
+async def handle_reminder_confirm(update, context):
+    query = update.callback_query
+    await query.answer()
+    t = context.user_data['reminder_type']
+    desc = context.user_data['reminder_description']
+    freq = context.user_data['reminder_frequency']
+    if t == "reminder_type_km":
+        last_done_km = context.user_data['last_done_km']
+        next_due_km = context.user_data['next_due_km']
+        db.add_maintenance_reminder('km', desc, freq, last_done_km=last_done_km, next_due_km=next_due_km)
+    else:
+        last_done_date = context.user_data['last_done_date']
+        next_due_date = context.user_data['next_due_date']
+        db.add_maintenance_reminder('time', desc, freq, last_done_date=last_done_date, next_due_date=next_due_date)
+    context.user_data.clear()
+    await query.edit_message_text(
+        "✅ Recordatorio guardado correctamente.",
         reply_markup=get_main_menu_keyboard()
     )
     return ConversationHandler.END 

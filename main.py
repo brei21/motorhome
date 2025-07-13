@@ -21,7 +21,11 @@ from handlers import (
     ASKING_MAINTENANCE_TYPE, ASKING_MAINTENANCE_DESCRIPTION, ASKING_MAINTENANCE_COST,
     add_location_callback, handle_location_input, cancel_location_callback, ASKING_LOCATION,
     menu_command, handle_gps_location, add_fuel_callback, handle_fuel_amount, 
-    handle_fuel_price, cancel_fuel_callback, ASKING_FUEL_AMOUNT, ASKING_FUEL_PRICE
+    handle_fuel_price, cancel_fuel_callback, ASKING_FUEL_AMOUNT, ASKING_FUEL_PRICE,
+    add_reminder_callback, handle_reminder_type, handle_reminder_template, handle_reminder_description, handle_reminder_frequency, handle_reminder_last_done, handle_reminder_confirm,
+    ASKING_REMINDER_TYPE, ASKING_REMINDER_TEMPLATE, ASKING_REMINDER_DESCRIPTION, ASKING_REMINDER_FREQUENCY, ASKING_REMINDER_LAST_DONE, CONFIRM_REMINDER, handle_complete_reminder,
+    handle_completion_date, complete_reminder_with_date,
+    ASKING_COMPLETION_DATE
 )
 from scheduler import DailyReminderScheduler
 
@@ -136,11 +140,40 @@ def setup_handlers(application: Application):
     )
     application.add_handler(fuel_conversation)
     
+    # Handler de conversación para recordatorios de mantenimiento
+    reminder_conversation = ConversationHandler(
+        entry_points=[CallbackQueryHandler(add_reminder_callback, pattern="^add_reminder$")],
+        states={
+            ASKING_REMINDER_TYPE: [CallbackQueryHandler(handle_reminder_type, pattern="^reminder_type_.*$")],
+            ASKING_REMINDER_TEMPLATE: [CallbackQueryHandler(handle_reminder_template, pattern="^template_.*$")],
+            ASKING_REMINDER_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_reminder_description)],
+            ASKING_REMINDER_FREQUENCY: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_reminder_frequency), CallbackQueryHandler(handle_reminder_frequency, pattern="^use_default_.*$")],
+            ASKING_REMINDER_LAST_DONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_reminder_last_done), CallbackQueryHandler(handle_reminder_last_done, pattern="^no_last_done$")],
+            CONFIRM_REMINDER: [CallbackQueryHandler(handle_reminder_confirm, pattern="^confirm_reminder$")],
+        },
+        fallbacks=[CallbackQueryHandler(add_reminder_callback, pattern="^add_reminder$")]
+    )
+    application.add_handler(reminder_conversation)
+    
+    # Handler de conversación para completar recordatorios
+    complete_reminder_conversation = ConversationHandler(
+        entry_points=[CallbackQueryHandler(handle_complete_reminder, pattern="^complete_reminder_\\d+$")],
+        states={
+            ASKING_COMPLETION_DATE: [
+                CallbackQueryHandler(handle_completion_date, pattern="^completion_.*$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_completion_date)
+            ]
+        },
+        fallbacks=[CallbackQueryHandler(handle_complete_reminder, pattern="^complete_reminder$")]
+    )
+    application.add_handler(complete_reminder_conversation)
+    
     # Handler adicional para manejar texto cuando esperamos ubicación desde estado diario
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_location_input))
     
     # Handler de callbacks de botones
     application.add_handler(CallbackQueryHandler(button_callback))
+    application.add_handler(CallbackQueryHandler(handle_complete_reminder, pattern="^complete_reminder_\\d+$"))
 
 async def on_start(update, context):
     """Callback cuando un usuario inicia el bot"""

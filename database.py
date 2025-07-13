@@ -69,6 +69,22 @@ class Database:
                 )
             """)
             
+            # Tabla de recordatorios de mantenimiento
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS maintenance_reminders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    type TEXT NOT NULL CHECK (type IN ('km', 'time', 'custom')),
+                    description TEXT NOT NULL,
+                    frequency INTEGER NOT NULL,
+                    last_done_km INTEGER,
+                    last_done_date DATE,
+                    next_due_km INTEGER,
+                    next_due_date DATE,
+                    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'overdue')),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             conn.commit()
     
     # Métodos para daily_records
@@ -232,6 +248,80 @@ class Database:
             cursor.execute("SELECT SUM(amount * price_per_liter) FROM fuel_records")
             result = cursor.fetchone()[0]
             return result if result else 0.0
+
+    # Métodos para maintenance_reminders
+    def add_maintenance_reminder(self, type_: str, description: str, frequency: int,
+                               last_done_km: Optional[int] = None, last_done_date: Optional[str] = None,
+                               next_due_km: Optional[int] = None, next_due_date: Optional[str] = None) -> int:
+        """Añade un recordatorio de mantenimiento"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO maintenance_reminders 
+                (type, description, frequency, last_done_km, last_done_date, next_due_km, next_due_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (type_, description, frequency, last_done_km, last_done_date, next_due_km, next_due_date))
+            conn.commit()
+            return int(cursor.lastrowid) if cursor.lastrowid else 0
+    
+    def get_maintenance_reminders(self, status: Optional[str] = None) -> List[Dict]:
+        """Obtiene los recordatorios de mantenimiento"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            if status:
+                cursor.execute("""
+                    SELECT * FROM maintenance_reminders 
+                    WHERE status = ?
+                    ORDER BY next_due_date ASC, next_due_km ASC
+                """, (status,))
+            else:
+                cursor.execute("""
+                    SELECT * FROM maintenance_reminders 
+                    ORDER BY next_due_date ASC, next_due_km ASC
+                """)
+            
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def update_maintenance_reminder(self, reminder_id: int, **kwargs) -> bool:
+        """Actualiza un recordatorio de mantenimiento"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # Construir la consulta dinámicamente
+            fields = []
+            values = []
+            for key, value in kwargs.items():
+                if key in ['last_done_km', 'last_done_date', 'next_due_km', 'next_due_date', 'status']:
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+            
+            if not fields:
+                return False
+            
+            values.append(reminder_id)
+            query = f"UPDATE maintenance_reminders SET {', '.join(fields)} WHERE id = ?"
+            
+            cursor.execute(query, values)
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def delete_maintenance_reminder(self, reminder_id: int) -> bool:
+        """Elimina un recordatorio de mantenimiento"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM maintenance_reminders WHERE id = ?", (reminder_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def get_current_odometer(self) -> Optional[int]:
+        """Obtiene el kilometraje actual (último registro)"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT kilometers FROM odometer_records ORDER BY date DESC LIMIT 1")
+            result = cursor.fetchone()
+            return result[0] if result else None
 
 # Instancia global de la base de datos
 db = Database() 
