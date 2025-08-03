@@ -1,602 +1,3 @@
-"""
-Handlers del Bot de Autocaravana
-"""
-import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-from telegram.ext import ContextTypes, ConversationHandler
-from datetime import datetime
-from typing import Dict, Any
-from database import db
-from config import config
-
-# Estados para las conversaciones
-# Estados para las conversaciones
-ASKING_LOCATION = 1
-ASKING_KILOMETERS = 2
-ASKING_MAINTENANCE_TYPE = 3
-ASKING_MAINTENANCE_DESCRIPTION = 4
-ASKING_MAINTENANCE_COST = 5
-ASKING_FUEL_AMOUNT = 6
-ASKING_FUEL_PRICE = 7
-# Estados para recordatorios
-ASKING_REMINDER_TYPE = 8
-ASKING_REMINDER_TEMPLATE = 9
-ASKING_REMINDER_DESCRIPTION = 10
-ASKING_REMINDER_FREQUENCY = 11
-ASKING_REMINDER_LAST_DONE = 12
-CONFIRM_REMINDER = 13
-# Estados para completar recordatorios
-ASKING_COMPLETION_DATE = 14
-
-# --- Textos centralizados ---
-ERROR_INVALID_NUMBER = "❌ Por favor, introduce un número válido. Inténtalo de nuevo:"
-ERROR_NEGATIVE_NUMBER = "❌ El valor debe ser mayor que 0. Inténtalo de nuevo:"
-ERROR_LOCATION = "❌ La ubicación debe tener al menos 3 caracteres. Inténtalo de nuevo:"
-ERROR_MAINTENANCE_DESC = "❌ La descripción debe tener al menos 3 caracteres. Inténtalo de nuevo:"
-ERROR_CANCELLED = "❌ Operación cancelada."
-SUCCESS_REGISTERED = "✅ Registro completado correctamente."
-SUCCESS_CANCELLED = "❌ Registro cancelado."
-
-# --- Utilidades de respuesta ---
-async def reply_error(update, text, reply_markup=None):
-    await update.message.reply_text(text, reply_markup=reply_markup)
-
-async def reply_success(update, text, reply_markup=None):
-    await update.message.reply_text(text, reply_markup=reply_markup)
-
-# --- Configuración de logging ---
-logging.basicConfig(level=logging.INFO)
-
-# Emojis y textos
-STATUS_EMOJIS = {
-    'travel': '🚗',
-    'parking': '🅿️', 
-    'vacation_home': '🏠'
-}
-
-STATUS_NAMES = {
-    'travel': 'De viaje',
-    'parking': 'En parking',
-    'vacation_home': 'En casa de vacaciones'
-}
-
-MAINTENANCE_TYPES = {
-    'repair': '🔧 Reparación',
-    'improvement': '⚡ Mejora',
-    'maintenance': '🛠️ Mantenimiento'
-}
-
-def get_main_menu_keyboard() -> InlineKeyboardMarkup:
-    """Retorna el teclado del menú principal"""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("📅 Registro Diario", callback_data="daily_record"),
-            InlineKeyboardButton("🛣️ Kilometraje", callback_data="kilometers")
-        ],
-        [
-            InlineKeyboardButton("🔧 Mantenimiento", callback_data="maintenance"),
-            InlineKeyboardButton("⛽ Repostajes", callback_data="fuel")
-        ],
-        [
-            InlineKeyboardButton("🔔 Recordatorios", callback_data="reminders"),
-            InlineKeyboardButton("📊 Estadísticas", callback_data="stats")
-        ],
-        [
-            InlineKeyboardButton("❓ Ayuda", callback_data="help")
-        ]
-    ])
-
-def get_daily_status_keyboard() -> InlineKeyboardMarkup:
-    """Retorna el teclado para seleccionar estado diario"""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🚗 De viaje", callback_data="status_travel"),
-            InlineKeyboardButton("🅿️ En parking", callback_data="status_parking")
-        ],
-        [
-            InlineKeyboardButton("🏠 Casa vacaciones", callback_data="status_vacation_home")
-        ],
-        [
-            InlineKeyboardButton("🔙 Volver", callback_data="main_menu")
-        ]
-    ])
-
-def get_stats_keyboard() -> InlineKeyboardMarkup:
-    """Retorna el teclado de estadísticas SOLO con listados"""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("📍 Registros de ubicación", callback_data="stats_list_daily"),
-        ],
-        [
-            InlineKeyboardButton("🛣️ Kilometraje", callback_data="stats_list_km"),
-        ],
-        [
-            InlineKeyboardButton("🔧 Mantenimiento", callback_data="stats_list_maintenance"),
-        ],
-        [
-            InlineKeyboardButton("⛽ Repostajes", callback_data="stats_list_fuel"),
-        ],
-        [
-            InlineKeyboardButton("🔙 Volver", callback_data="main_menu")
-        ]
-    ])
-
-def get_maintenance_type_keyboard() -> InlineKeyboardMarkup:
-    """Retorna el teclado para tipos de mantenimiento"""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🔧 Reparación", callback_data="maintenance_repair"),
-            InlineKeyboardButton("⚡ Mejora", callback_data="maintenance_improvement")
-        ],
-        [
-            InlineKeyboardButton("🛠️ Mantenimiento", callback_data="maintenance_maintenance")
-        ],
-        [
-            InlineKeyboardButton("🔙 Volver", callback_data="main_menu")
-        ]
-    ])
-
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Comando /start - Reiniciar bot"""
-    user = update.effective_user
-    # Configurar chat_id para el scheduler
-    from main import daily_scheduler
-    if daily_scheduler:
-        daily_scheduler.set_chat_id(update.effective_chat.id)
-        logging.info(f"✅ Chat ID configurado para recordatorios: {update.effective_chat.id}")
-
-    welcome_text = (
-        f"🚐 Hola {user.first_name}!\n\n"
-        "Bot de Autocaravana reiniciado correctamente ✅\n\n"
-        "El bot está listo para usar. Usa /menu para ver el menú principal.\n\n"
-        "¿Necesitas ayuda? Usa /help"
-    )
-
-    # Orden: menu, daily, km, maintenance, fuel, stats, help, start
-    keyboard = [
-        [InlineKeyboardButton("🏠 Menú principal", callback_data="main_menu")],
-        [InlineKeyboardButton("📅 Registro Diario", callback_data="daily_record")],
-        [InlineKeyboardButton("🛣️ Kilometraje", callback_data="kilometers")],
-        [InlineKeyboardButton("🔧 Mantenimiento", callback_data="maintenance")],
-        [InlineKeyboardButton("⛽ Repostaje", callback_data="fuel")],
-        [InlineKeyboardButton("📊 Estadísticas", callback_data="stats")],
-        [InlineKeyboardButton("❓ Ayuda", callback_data="help")],
-        [InlineKeyboardButton("🔄 Reiniciar", callback_data="start")],
-    ]
-    await update.message.reply_text(
-        welcome_text,
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Comando /menu - Menú principal"""
-    user = update.effective_user
-    
-    # Configurar chat_id para el scheduler
-    from main import daily_scheduler
-    if daily_scheduler:
-        daily_scheduler.set_chat_id(update.effective_chat.id)
-        logging.info(f"✅ Chat ID configurado para recordatorios: {update.effective_chat.id}")
-    
-    menu_text = f"""
-🚐 Bot de Autocaravana 🏕️
-
-Hola {user.first_name}! ¿Qué quieres hacer hoy?
-
-Este bot te ayudará a:
-• 📍 Registrar la ubicación diaria de tu autocaravana
-• 📊 Ver estadísticas de uso
-• 🛣️ Controlar el kilometraje
-• 🔧 Gestionar mantenimientos
-• ⛽ Registrar repostajes
-• 🔔 Gestionar recordatorios de mantenimiento
-"""
-    
-    await update.message.reply_text(
-        menu_text,
-        reply_markup=get_main_menu_keyboard()
-    )
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Comando /help - Ayuda"""
-    help_text = (
-        "📚 Ayuda del Bot de Autocaravana\n\n"
-        "Comandos disponibles:\n"
-        "• /menu - Menú principal\n"
-        "• /daily - Registro manual del estado diario\n"
-        "• /km - Registrar kilometraje\n"
-        "• /maintenance - Registrar mantenimiento\n"
-        "• /fuel - Registrar repostaje\n"
-        "• /stats - Ver estadísticas\n"
-        "• /help - Esta ayuda\n"
-        "• /start - Reiniciar bot\n\n"
-        "Funcionalidades:\n"
-        "• 📅 Registro automático: Todos los días a las 09:00 AM te preguntará dónde está la autocaravana\n"
-        "• 📊 Estadísticas: Listas de todos los registros\n"
-        "• 🛣️ Kilometraje: Control del odómetro total\n"
-        "• 🔧 Mantenimiento: Registro de reparaciones y mejoras con costes\n"
-        "• ⛽ Repostajes: Registro de combustible con importe y precio por litro\n"
-        "• 🔔 Recordatorios: Gestión de recordatorios de mantenimiento por kilometraje y tiempo\n\n"
-        "Estados de la autocaravana:\n"
-        "• 🚗 De viaje - Registra ubicación por texto\n"
-        "• 🅿️ En parking - La autocaravana está en un parking\n"
-        "• 🏠 Casa vacaciones - La autocaravana está en una casa de vacaciones"
-    )
-    help_text = help_text.replace('"', '').replace("'", '').replace('*', '')
-    await update.message.reply_text(
-        help_text,
-        reply_markup=get_main_menu_keyboard()
-    )
-
-async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Comando /daily - Registro manual del estado diario"""
-    await update.message.reply_text(
-        "📅 Registro Diario\n\n¿Dónde está la autocaravana hoy?",
-        reply_markup=get_daily_status_keyboard()
-    )
-
-async def km_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Comando /km - Registrar kilometraje"""
-    # Determinar si es un comando o un callback
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.edit_message_text(
-            "🛣️ Registrar Kilometraje\n\nPor favor, introduce el número de kilómetros:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Volver", callback_data="kilometers")]
-            ])
-        )
-    else:
-        await update.message.reply_text(
-            "🛣️ Registrar Kilometraje\n\nPor favor, introduce el número de kilómetros:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Volver", callback_data="kilometers")]
-            ])
-        )
-    return ASKING_KILOMETERS
-
-async def add_kilometers_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Callback para añadir kilometraje desde el menú"""
-    return await km_command(update, context)
-
-async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Comando /maintenance - Registrar mantenimiento"""
-    await update.message.reply_text(
-        "🔧 Registro de Mantenimiento\n\n¿Qué tipo de registro quieres añadir?",
-        reply_markup=get_maintenance_type_keyboard()
-    )
-
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Comando /stats - Ver estadísticas"""
-    # Determinar si es un comando o un callback
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.edit_message_text(
-            "📊 Estadísticas\n\n¿Qué estadísticas quieres ver?",
-            reply_markup=get_stats_keyboard()
-        )
-    else:
-        await update.message.reply_text(
-            "📊 Estadísticas\n\n¿Qué estadísticas quieres ver?",
-            reply_markup=get_stats_keyboard()
-        )
-
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Maneja todos los callbacks de botones"""
-    query = update.callback_query
-    await query.answer()
-    
-    data = query.data
-    
-    if data == "main_menu":
-        await show_main_menu(query)
-    elif data == "daily_record":
-        await show_daily_status_menu(query)
-    elif data.startswith("status_"):
-        await handle_status_selection(query, context, data.replace("status_", ""))
-    elif data == "kilometers":
-        await show_kilometers_menu(query)
-    elif data == "maintenance":
-        await show_maintenance_menu(query)
-    elif data == "fuel":
-        await show_fuel_menu(query)
-    elif data == "reminders":
-        await show_reminders_menu(query)
-    elif data == "stats":
-        await show_stats_menu(query)
-    elif data.startswith("stats_"):
-        await handle_stats_selection(query, data.replace("stats_", ""))
-    elif data == "add_maintenance":
-        # Este callback será manejado por el ConversationHandler
-        pass
-    elif data == "add_location":
-        # Este callback será manejado por el ConversationHandler
-        pass
-    elif data == "add_fuel":
-        # Este callback será manejado por el ConversationHandler
-        pass
-    elif data == "add_kilometers":
-        # Este callback será manejado por el ConversationHandler
-        pass
-    elif data == "add_reminder":
-        await add_reminder_callback(update, context)
-    elif data == "complete_reminder":
-        await show_complete_reminder_menu(query)
-    elif data.startswith("complete_reminder_"):
-        await handle_complete_reminder(update, context)
-    elif data == "list_reminders":
-        await show_reminders_list(query)
-    elif data == "list_fuel":
-        await show_fuel_list(query)
-    elif data.startswith("maintenance_"):
-        await handle_maintenance_type_selection(query, data.replace("maintenance_", ""))
-    elif data in ["completion_today", "completion_other_date"]:
-        await handle_completion_date(update, context)
-    elif data == "cancel_location":
-        await cancel_location_callback(update, context)
-    elif data == "help":
-        await show_help(query)
-
-async def show_main_menu(query) -> None:
-    """Muestra el menú principal"""
-    await query.edit_message_text(
-        "🚐 Bot de Autocaravana\n\n¿Qué quieres hacer?",
-        reply_markup=get_main_menu_keyboard()
-    )
-
-async def show_daily_status_menu(query) -> None:
-    """Muestra el menú de estado diario"""
-    await query.edit_message_text(
-        "📅 Registro Diario\n\n¿Dónde está la autocaravana hoy?",
-        reply_markup=get_daily_status_keyboard()
-    )
-
-async def handle_status_selection(query, context, status: str) -> None:
-    """Maneja la selección de estado diario"""
-    today = datetime.now().strftime('%Y-%m-%d')
-    
-    if status == 'travel':
-        # Para viajes, usar el ConversationHandler de ubicación
-        await query.edit_message_text(
-            "🚗 De viaje\n\nEscribe la ubicación donde te encuentras:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Volver", callback_data="cancel_location")]
-            ])
-        )
-        # Guardar el estado en el contexto para la conversación
-        context.user_data['waiting_for_location'] = True
-        context.user_data['status_to_save'] = status
-        return
-    else:
-        # Para otros estados, guardar directamente
-        db.add_daily_record(today, status)
-        status_name = STATUS_NAMES.get(status, status)
-        emoji = STATUS_EMOJIS.get(status, "📝")
-        
-        await query.edit_message_text(
-            f"{emoji} Registro guardado\n\n"
-            f"Fecha: {datetime.now().strftime('%d/%m/%Y')}\n"
-            f"Estado: {status_name}\n\n"
-            "✅ Registro completado correctamente.",
-            reply_markup=get_main_menu_keyboard()
-        )
-
-async def show_kilometers_menu(query) -> None:
-    """Muestra el menú de kilometraje"""
-    total_km = db.get_total_kilometers()
-    recent_records = db.get_odometer_records(limit=5)
-    
-    text = f"🛣️ Kilometraje\n\n"
-    text += f"📊 Total acumulado: {total_km:,} km\n\n".replace(',', '.')
-    
-    if recent_records:
-        text += "📋 Últimos registros:\n"
-        for record in recent_records:
-            date = datetime.strptime(record['date'], '%Y-%m-%d').strftime('%d/%m')
-            odometer = record['kilometers']
-            km_difference = record.get('km_difference', 0)
-            
-            if km_difference > 0:
-                text += f"• {date}: {odometer:,} km (+{km_difference:,} km)\n".replace(',', '.')
-            else:
-                text += f"• {date}: {odometer:,} km\n".replace(',', '.')
-    
-    text += "\n¿Qué quieres hacer?"
-    
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Registrar KM", callback_data="add_kilometers")],
-        [InlineKeyboardButton("📋 Ver todos", callback_data="list_kilometers")],
-        [InlineKeyboardButton("🔙 Volver", callback_data="main_menu")]
-    ])
-    
-    await query.edit_message_text(text, reply_markup=keyboard)
-
-async def show_maintenance_menu(query) -> None:
-    """Muestra el menú de mantenimiento"""
-    total_cost = db.get_total_maintenance_cost()
-    recent_records = db.get_maintenance_records(limit=5)
-    
-    text = f"🔧 Mantenimiento\n\n"
-    text += f"💰 Coste total: {total_cost:,.2f} €\n\n"
-    
-    if recent_records:
-        text += "📋 Últimos registros:\n"
-        for record in recent_records:
-            date = datetime.strptime(record['date'], '%Y-%m-%d').strftime('%d/%m')
-            type_name = MAINTENANCE_TYPES.get(record['type'], record['type'])
-            cost_text = f" ({record['cost']}€)" if record['cost'] else ""
-            text += f"• {date}: {type_name}{cost_text}\n"
-    
-    text += "\n¿Qué quieres hacer?"
-    
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Registrar mantenimiento", callback_data="add_maintenance")],
-        [InlineKeyboardButton("📋 Ver todos", callback_data="list_maintenance")],
-        [InlineKeyboardButton("🔙 Volver", callback_data="main_menu")]
-    ])
-    
-    await query.edit_message_text(text, reply_markup=keyboard)
-
-async def show_fuel_menu(query) -> None:
-    """Muestra el menú de repostajes"""
-    total_cost = db.get_total_fuel_cost()
-    recent_records = db.get_fuel_records(limit=5)
-    
-    text = f"⛽ Repostajes\n\n"
-    text += f"💰 Coste total: {total_cost:,.2f} €\n\n"
-    
-    if recent_records:
-        text += "📋 Últimos registros:\n"
-        for record in recent_records:
-            date = datetime.strptime(record['date'], '%Y-%m-%d').strftime('%d/%m')
-            amount = record['amount']
-            price = record['price_per_liter']
-            liters = amount / price
-            text += f"• {date}: {amount:.2f}€ ({price:.3f}€/L) - {liters:.2f}L\n"
-    
-    text += "\n¿Qué quieres hacer?"
-    
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Registrar repostaje", callback_data="add_fuel")],
-        [InlineKeyboardButton("📋 Ver todos", callback_data="list_fuel")],
-        [InlineKeyboardButton("🔙 Volver", callback_data="main_menu")]
-    ])
-    
-    await query.edit_message_text(text, reply_markup=keyboard)
-
-async def show_stats_menu(query) -> None:
-    """Muestra el menú de estadísticas"""
-    await query.edit_message_text(
-        "📊 Estadísticas\n\n¿Qué estadísticas quieres ver?",
-        reply_markup=get_stats_keyboard()
-    )
-
-async def handle_stats_selection(query, stat_type: str) -> None:
-    """Maneja la selección de tipo de estadística SOLO con listados"""
-    if stat_type == "list_daily":
-        await show_daily_records_list(query)
-    elif stat_type == "list_km":
-        await show_kilometers_list(query)
-    elif stat_type == "list_maintenance":
-        await show_maintenance_list(query)
-    elif stat_type == "list_fuel":
-        await show_fuel_list(query)
-
-async def show_daily_records_list(query) -> None:
-    """Muestra la lista de registros de ubicación"""
-    records = db.get_daily_records(limit=20)
-    
-    if not records:
-        await query.edit_message_text(
-            "📍 **Registros de Ubicación**\n\nNo hay registros disponibles.",
-            reply_markup=get_stats_keyboard()
-        )
-        return
-    
-    text = "📍 **Registros de Ubicación**\n\n"
-    
-    for record in records:
-        date = datetime.strptime(record['date'], '%Y-%m-%d').strftime('%d/%m/%Y')
-        status = record['status']
-        
-        if status == 'travel':
-            # Para viajes: fecha - "De viaje" - ubicación introducida por el usuario
-            if record['location_name']:
-                if "," in record['location_name']:
-                    # Si la ubicación es GPS, mostrar coordenadas y enlace
-                    latlon = record['location_name']
-                    text += f"• {date} - 🚗 De viaje - [Ver en mapa](https://maps.google.com/?q={latlon})\n"
-                else:
-                    # Si es texto normal, mostrar la ubicación
-                    text += f"• {date} - 🚗 De viaje - {record['location_name']}\n"
-            else:
-                # Si no hay ubicación registrada
-                text += f"• {date} - 🚗 De viaje - Sin ubicación\n"
-        elif status == 'parking':
-            # Para parking: fecha - parking
-            text += f"• {date} - 🅿️ parking\n"
-        elif status == 'vacation_home':
-            # Para casa de vacaciones: fecha - Casa de vacaciones
-            text += f"• {date} - 🏠 Casa de vacaciones\n"
-    
-    # Dividir en múltiples mensajes si es muy largo
-    if len(text) > 4000:
-        parts = [text[i:i+4000] for i in range(0, len(text), 4000)]
-        for i, part in enumerate(parts):
-            if i == 0:
-                await query.edit_message_text(part)
-            else:
-                await query.message.reply_text(part)
-        
-        await query.message.reply_text(
-            "📋 Lista completada.",
-            reply_markup=get_stats_keyboard()
-        )
-    else:
-        await query.edit_message_text(
-            text,
-            reply_markup=get_stats_keyboard()
-        )
-
-async def show_kilometers_list(query) -> None:
-    """Muestra la lista de registros de kilometraje"""
-    records = db.get_odometer_records(limit=30)
-    if not records:
-        await query.edit_message_text(
-            "🛣️ Registros de Kilometraje\n\nNo hay registros disponibles.",
-            reply_markup=get_stats_keyboard()
-        )
-        return
-    
-    text = "🛣️ Registros de Kilometraje\n\n"
-    total_km = 0
-    
-    for record in records:
-        date = datetime.strptime(record['date'], '%Y-%m-%d').strftime('%d/%m/%Y')
-        odometer = record['kilometers']
-        km_difference = record.get('km_difference', 0)
-        notes = record['notes'] or ""
-        
-        # Mostrar odómetro total y diferencia
-        if km_difference > 0:
-            text += f"• {date} - {odometer:,} km (+{km_difference:,} km)".replace(',', '.')
-        else:
-            text += f"• {date} - {odometer:,} km".replace(',', '.')
-        
-        if notes:
-            text += f" ({notes})"
-        text += "\n"
-        
-        total_km += km_difference
-    
-    # Añadir línea separadora y total
-    text += "\n" + "─" * 40 + "\n"
-    text += f"🛣️ Total de kilómetros recorridos: {total_km:,} km".replace(',', '.')
-    
-    await query.edit_message_text(text, reply_markup=get_stats_keyboard())
-
-async def show_maintenance_list(query) -> None:
-    """Muestra la lista de registros de mantenimiento"""
-    records = db.get_maintenance_records(limit=30)
-    if not records:
-        await query.edit_message_text(
-            "🔧 Registros de Mantenimiento\n\nNo hay registros disponibles.",
-            reply_markup=get_stats_keyboard()
-        )
-        return
-    
-    text = "🔧 Registros de Mantenimiento\n\n"
-    total_cost = 0
-    
-    for record in records:
-        date = datetime.strptime(record['date'], '%Y-%m-%d').strftime('%d/%m/%Y')
-        desc = record['description']
-        cost = record['cost'] or 0
-        total_cost += cost
-        
-        # Formatear el coste para mostrar
-        cost_display = f"{cost:.2f}€" if cost > 0 else "0.00€"
-        
         text += f"• {date} - {desc} - {cost_display}\n"
     
     # Añadir línea separadora y sumatorio
@@ -652,13 +53,13 @@ Funcionalidades:
 • 📅 Registro automático: Todos los días a las 09:00 AM te preguntará dónde está la autocaravana
 • 📊 Estadísticas: Listas de todos los registros
 • 🛣️ Kilometraje: Control del odómetro total
-• 🔧*Mantenimiento: Registro de reparaciones y mejoras con costes
+• 🔧 Mantenimiento: Registro de reparaciones y mejoras con costes
 • ⛽ Repostajes: Registro de combustible con importe y precio por litro
 • 🔔 Recordatorios: Gestión de recordatorios de mantenimiento por kilometraje y tiempo
 
 Estados de la autocaravana:
 • 🚗 De viaje - Registra ubicación por texto
-• 🅿️*En parking - La autocaravana está en un parking
+• 🅿️ En parking - La autocaravana está en un parking
 • 🏠 Casa vacaciones - La autocaravana está en una casa de vacaciones
 """
     
@@ -718,7 +119,7 @@ async def handle_maintenance_type_selection(update: Update, context: ContextType
     type_name = MAINTENANCE_TYPES.get(maintenance_type, maintenance_type)
     
     await query.edit_message_text(
-        f"🔧 **{type_name}**\n\n"
+        f"🔧 {type_name}\n\n"
         f"Por favor, describe qué trabajo se realizó:\n\n"
         f"Ejemplo: 'Cambio de aceite y filtro de aire'",
         reply_markup=InlineKeyboardMarkup([[
@@ -961,12 +362,12 @@ async def show_reminders_menu(query) -> None:
         
         for reminder in reminders:
             emoji = "🛣️" if reminder['type'] == 'km' else "📅"
-            text += f"{emoji} **{reminder['description']}**\n"
+            text += f"{emoji} {reminder['description']}\n"
             
             if reminder['type'] == 'km' and current_odometer:
                 km_remaining = reminder['next_due_km'] - current_odometer
                 if km_remaining <= 0:
-                    text += f"   ⚠️ **¡VENCIDO!** ({abs(km_remaining):,} km de retraso)\n".replace(',', '.')
+                    text += f"   ⚠️ ¡VENCIDO! ({abs(km_remaining):,} km de retraso)\n".replace(',', '.')
                 else:
                     text += f"   📍 {km_remaining:,} km restantes\n".replace(',', '.')
             elif reminder['type'] == 'time' and reminder['next_due_date']:
@@ -976,7 +377,7 @@ async def show_reminders_menu(query) -> None:
                 days_remaining = (due_date - today).days
                 
                 if days_remaining <= 0:
-                    text += f"   ⚠️ **¡VENCIDO!** ({abs(days_remaining)} días de retraso)\n"
+                    text += f"   ⚠️ ¡VENCIDO! ({abs(days_remaining)} días de retraso)\n"
                 else:
                     text += f"   📅 {days_remaining} días restantes\n"
             
@@ -1075,7 +476,7 @@ async def handle_complete_reminder(update, context):
             [InlineKeyboardButton("🔙 Volver", callback_data="complete_reminder")]
         ])
         await query.edit_message_text(
-            f"¿Cuándo completaste **{reminder['description']}**?",
+            f"¿Cuándo completaste {reminder['description']}?",
             reply_markup=keyboard
         )
         return ASKING_COMPLETION_DATE
@@ -1140,7 +541,7 @@ async def complete_reminder_with_date(update, context, completion_date):
             next_due_km=next_due_km
         )
         completion_display = completion_date_obj.strftime('%d-%m-%Y')
-        resumen = f"✅ **{reminder['description']}** marcado como completado.\n\nFecha de completado: {completion_display}\nPróximo mantenimiento: {next_due_km:,} km".replace(',', '.')
+        resumen = f"✅ {reminder['description']} marcado como completado.\n\nFecha de completado: {completion_display}\nPróximo mantenimiento: {next_due_km:,} km".replace(',', '.')
     else:
         # Para recordatorios por tiempo, calcular próxima fecha
         next_due_date_obj = completion_date_obj + relativedelta(months=reminder['frequency'])
@@ -1153,7 +554,7 @@ async def complete_reminder_with_date(update, context, completion_date):
         )
         completion_display = completion_date_obj.strftime('%d-%m-%Y')
         next_due_display = next_due_date_obj.strftime('%d-%m-%Y')
-        resumen = f"✅ **{reminder['description']}** marcado como completado.\n\nFecha de completado: {completion_display}\nPróximo mantenimiento: {next_due_display}"
+        resumen = f"✅ {reminder['description']} marcado como completado.\n\nFecha de completado: {completion_display}\nPróximo mantenimiento: {next_due_display}"
     # Limpiar datos temporales
     context.user_data.clear()
     # Mostrar resumen y luego el menú de recordatorios para evitar botones inactivos
