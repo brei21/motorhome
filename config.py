@@ -2,6 +2,7 @@
 Configuración del Bot de Autocaravana
 """
 import os
+from dotenv import load_dotenv
 from dataclasses import dataclass
 from datetime import time
 import pytz
@@ -28,19 +29,22 @@ class Config:
     }
 
 def load_config() -> Config:
-    """Carga la configuración desde variables de entorno"""
+    """Carga la configuración desde variables de entorno o .env"""
+    # Cargar variables desde .env si existe
+    load_dotenv()
+
     # Token de Telegram
     token = os.getenv("TELEGRAM_TOKEN")
     if not token:
         raise ValueError("TELEGRAM_TOKEN no está configurado")
-    
+
     # Zona horaria
     tz_name = os.getenv("TZ", "Europe/Madrid")
     try:
         timezone = pytz.timezone(tz_name)
     except pytz.UnknownTimeZoneError:
         raise ValueError(f"Zona horaria inválida: {tz_name}")
-    
+
     return Config(
         TELEGRAM_TOKEN=token,
         TIMEZONE=timezone
