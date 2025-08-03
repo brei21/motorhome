@@ -1,11 +1,15 @@
 # Dockerfile para motorhomebot
 FROM python:3.12-slim
+
+# 1. Directorio de trabajo
 WORKDIR /app
 
-COPY requirements.txt .
+# 2. Copiar e instalar dependencias
+COPY requirements.txt .  
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 3. Copiar el resto del código
 COPY . .
-RUN pip install -e .
 
-CMD ["python", "-m", "motorhomebot.main"] 
+# 4. Arrancar el bot
+CMD ["python", "run.py"]

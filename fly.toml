@@ -1,22 +1,33 @@
-app = "motorhomebot"
-primary_region = "lhr"
+# fly.toml app configuration file generated for motorhomebot on 2025-08-03T23:13:39+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'motorhomebot'
+primary_region = 'lhr'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  TZ = "Europe/Madrid"
+  TZ = 'Europe/Madrid'
 
 [processes]
-  bot = "python -m motorhomebot.main"
+  bot = 'python -m motorhomebot.main'
 
-[mounts]
-  source = "db"
-  destination = "/data"
+[[mounts]]
+  source = 'data'
+  destination = '/data'
 
 [[services]]
-  processes = ["bot"]
-  internal_port = 8080          # no sirve HTTP, pero evita health-check blocking
-  protocol = "tcp"
-  auto_stop_machines = "off"
-  auto_start_machines = false 
+  protocol = 'tcp'
+  internal_port = 8080
+  auto_stop_machines = 'off'
+  auto_start_machines = false
+  ports = []
+  processes = ['bot']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
