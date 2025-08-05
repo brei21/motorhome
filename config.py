@@ -1,6 +1,3 @@
-"""
-Configuración del Bot de Autocaravana
-"""
 import os
 from dotenv import load_dotenv
 from dataclasses import dataclass
@@ -11,44 +8,47 @@ import pytz
 class Config:
     # Telegram
     TELEGRAM_TOKEN: str
-    
+
     # Zona horaria
     TIMEZONE: pytz.BaseTzInfo
-    
-    # Base de datos
+
+    # Base de datos (SQLite, para compatibilidad)
     DATABASE_PATH: str = "data/motorhome.db"
-    
+
+    # Supabase/Postgres (añade la variable aquí)
+    SUPABASE_URL: str = None
+
     # Horario del recordatorio diario (09:00 AM España)
     DAILY_REMINDER_TIME: time = time(9, 0)
-    
+
     # Configuración de gráficos
     GRAPH_COLORS = {
-        'travel': '#FF6B6B',      # Rojo para viajes
-        'parking': '#4ECDC4',     # Turquesa para parking
-        'vacation_home': '#45B7D1' # Azul para casa de vacaciones
+        'travel': '#FF6B6B',
+        'parking': '#4ECDC4',
+        'vacation_home': '#45B7D1'
     }
 
 def load_config() -> Config:
     """Carga la configuración desde variables de entorno o .env"""
-    # Cargar variables desde .env si existe
     load_dotenv()
 
-    # Token de Telegram
     token = os.getenv("TELEGRAM_TOKEN")
     if not token:
         raise ValueError("TELEGRAM_TOKEN no está configurado")
 
-    # Zona horaria
     tz_name = os.getenv("TZ", "Europe/Madrid")
     try:
         timezone = pytz.timezone(tz_name)
     except pytz.UnknownTimeZoneError:
         raise ValueError(f"Zona horaria inválida: {tz_name}")
 
+    # Nueva línea: Supabase/Postgres URL (opcional)
+    supabase_url = os.getenv("SUPABASE_URL")
+
     return Config(
         TELEGRAM_TOKEN=token,
-        TIMEZONE=timezone
+        TIMEZONE=timezone,
+        SUPABASE_URL=supabase_url
     )
 
-# Instancia global de configuración
-config = load_config() 
+config = load_config()
