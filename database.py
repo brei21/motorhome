@@ -104,11 +104,9 @@ class SQLiteDatabase(BaseDatabase):
             """)
             conn.commit()
 
-    # Métodos idénticos a tu código original, usando sqlite3...
-    # (puedes mantener aquí todos los métodos como ya tienes)
-
-    # Aquí irían tus métodos ya copiados: add_daily_record, get_daily_record, etc.
-    # Por espacio, los omito, pero puedes copiar/pegar los de tu versión.
+    # Incluye aquí tus métodos existentes: add_daily_record, get_daily_record, etc.
+    # Puedes copiar/pegar los que tienes. Solo cambia el nombre de la clase.
+    # TODO: Copia aquí tus métodos ya definidos en la versión SQLite.
 
 #########################
 #   POSTGRES DATABASE   #
@@ -116,10 +114,9 @@ class SQLiteDatabase(BaseDatabase):
 class PostgresDatabase(BaseDatabase):
     def __init__(self):
         self.conn_kwargs = self._get_conn_kwargs()
-        self._init_database()
+        # Las tablas debes crearlas manualmente en Supabase
 
     def _get_conn_kwargs(self):
-        # Permite que psycopg2 use URL completa
         import urllib.parse as urlparse
         url = config.SUPABASE_URL
         result = urlparse.urlparse(url)
@@ -132,17 +129,12 @@ class PostgresDatabase(BaseDatabase):
             "sslmode": "require"
         }
 
-    def _init_database(self):
-        # Las tablas las debes crear una vez desde Supabase Dashboard (no desde aquí)
-        pass
-
     def _connect(self):
         return psycopg2.connect(**self.conn_kwargs, cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # Ejemplo de métodos adaptados a Postgres
+    # Ejemplo de método: (Copia tus métodos y cambia ? por %s y adaptaciones menores)
     def add_daily_record(self, date: str, status: str, latitude: Optional[float] = None, 
                         longitude: Optional[float] = None, location_name: Optional[str] = None) -> int:
-        """Añade un registro diario"""
         with self._connect() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
@@ -164,13 +156,11 @@ class PostgresDatabase(BaseDatabase):
                 cursor.execute("SELECT * FROM daily_records WHERE date = %s", (date,))
                 row = cursor.fetchone()
                 return dict(row) if row else None
-
-    # (El resto de métodos los puedes copiar de tu clase original, cambiando ? por %s, y adaptando ON CONFLICT o AUTOINCREMENT/SERIAL)
-    # ... [continúa igual que en SQLite, solo cambian los placeholders y las queries de conflicto/autoincrement]
+    # Continúa igual para los demás métodos (ver comentario arriba)
 
 # --- Factory para seleccionar la DB correcta ---
 
-if config.SUPABASE_URL and psycopg2:
+if hasattr(config, "SUPABASE_URL") and config.SUPABASE_URL and psycopg2:
     db = PostgresDatabase()
 else:
     db = SQLiteDatabase()
