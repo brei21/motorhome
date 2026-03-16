@@ -1,0 +1,297 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.bentoGrid {
+  display: grid;
+  grid-template-columns: 2fr 3fr; /* Left gets 40%, Right gets 60% */
+  gap: 24px;
+}
+
+.leftCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.statsRowGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.listsRowGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.bentoItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HERO CARD (Map placeholder) */
+.heroCard {
+  border-radius: var(--bento-radius);
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  min-height: 400px;
+  flex: 1; /* stretches to fill left col */
+}
+
+.heroOverlay {
+  background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 40%, rgba(0,0,0,0.8) 100%);
+  width: 100%;
+  height: 100%;
+  padding: var(--bento-padding);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.heroContent {
+  flex: 1; /* Space for leaflet map component */
+}
+
+.heroHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+}
+
+.heroFooter {
+  z-index: 10;
+}
+
+/* (The rest is identical to the previous page.module.css styles for Bento Utilities) */
+.heroBadge {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heroMenu {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.moreBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.budgetStats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+
+.budgetPill {
+  background: rgba(0,0,0,0.05);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 24px;
+}
+
+.donut {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donutHole {
+  width: 70%;
+  height: 70%;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yellowCard {
+  background: var(--bento-yellow);
+  border-radius: var(--bento-radius);
+  padding: var(--bento-padding);
+  box-shadow: var(--shadow-md);
+}
+
+.purpleLightCard {
+  background: var(--bento-purple-light);
+  border-radius: var(--bento-radius);
+  padding: var(--bento-padding);
+  box-shadow: var(--shadow-md);
+}
+
+.purpleDarkCard {
+  background: var(--bento-purple);
+  border-radius: var(--bento-radius);
+  padding: var(--bento-padding);
+  box-shadow: var(--shadow-md);
+}
+
+.readinessContainer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.readinessRing {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: conic-gradient(var(--bento-green) 70%, rgba(0,0,0,0.1) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.readinessInner {
+  width: 80%;
+  height: 80%;
+  background: var(--bento-yellow);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.weatherInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex: 1;
+}
+
+.weatherText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weatherInfo .text-title-1 {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.travelList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  justify-content: center;
+}
+
+.travelItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.todoList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.todoItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  cursor: pointer;
+}
+
+.todoItem input {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--bento-white);
+}
+
+.todoTexts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.addRecordBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.addIcon {
+  width: 24px;
+  height: 24px;
+  background: var(--text-primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+@media (max-width: 1024px) {
+  .bentoGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .statsRowGrid, .listsRowGrid {
+    grid-template-columns: 1fr;
+  }
+}

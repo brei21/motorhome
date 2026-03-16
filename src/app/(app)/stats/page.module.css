@@ -1,0 +1,114 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.header {
+  padding-top: 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card.col-span-2 {
+  grid-column: span 2;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconWrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.blue { background: linear-gradient(135deg, #007aff, #0056b3); }
+.orange { background: linear-gradient(135deg, #ff9500, #cc7700); }
+.green { background: linear-gradient(135deg, #34c759, #248a3d); }
+
+.cardContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--divider-color);
+  margin: 8px 0;
+}
+
+.progressContainer {
+  display: flex;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  gap: 2px;
+  background: var(--divider-color);
+}
+
+.progressBarWrapper {
+  height: 100%;
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.legendContainer {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.legendIcon {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card.col-span-2 {
+    grid-column: span 1;
+  }
+}

@@ -1,0 +1,169 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.header {
+  padding-bottom: 8px;
+}
+
+.bentoSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.formSection {
+  min-height: 480px;
+}
+
+.listSection {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Success Banner */
+.successBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  margin-bottom: 24px;
+}
+
+/* Stats Row */
+.statsRow {
+  margin-bottom: 32px;
+}
+
+.statBox {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Base Form */
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 1;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 16px;
+  z-index: 2;
+  color: var(--text-tertiary);
+}
+
+.bentoInput {
+  width: 100%;
+  background: white;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 18px 20px;
+  font-size: 16px;
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.bentoInput.withIcon {
+  padding-left: 48px;
+}
+
+.bentoInput:focus {
+  border-color: var(--bento-dark);
+}
+
+.submitButton {
+  padding: 20px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto;
+  background: var(--bento-dark);
+  color: white;
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* List Side */
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.recordList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.divider {
+  height: 1px;
+  background: var(--divider-color);
+  margin: 8px 0;
+}
+
+.recordItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.recordIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recordDetails {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 4px;
+}
+
+.recordMain, .recordSub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .bentoSplit {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,200 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.header {
+  padding-bottom: 8px;
+}
+
+.bentoSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.formSection {
+  min-height: 520px;
+}
+
+.listSection {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Success Banner */
+.successBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(52, 199, 89, 0.1);
+  border-radius: 16px;
+  margin-bottom: 24px;
+  color: var(--accent-green);
+}
+
+/* Base Form */
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  flex: 1;
+}
+
+.typeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.typeBtn {
+  background: #F2F2F2;
+  border-radius: 16px;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all 0.2s var(--ease-out-expo);
+  border: 2px solid transparent;
+}
+
+.typeBtn:hover {
+  background: #E5E5E5;
+}
+
+.typeActiveBlue {
+  background: rgba(0, 122, 255, 0.1);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.typeActiveGreen {
+  background: rgba(52, 199, 89, 0.1);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.typeActiveRed {
+  background: rgba(255, 59, 48, 0.1);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 16px;
+  z-index: 2;
+  color: var(--text-tertiary);
+}
+
+.bentoInput {
+  width: 100%;
+  background: #F2F2F2;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 18px 20px;
+  font-size: 16px;
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.bentoInput.withIcon {
+  padding-left: 48px;
+}
+
+.bentoInput:focus {
+  background: white;
+  border-color: var(--bento-dark);
+}
+
+.bentoInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+.submitButton {
+  padding: 20px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto;
+  background: var(--bento-dark);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dark List Side (Packing List Style) */
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  color: white;
+}
+
+.moreBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.todoList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.todoItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.todoIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.todoTexts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .bentoSplit {
+    grid-template-columns: 1fr;
+  }
+}

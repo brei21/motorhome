@@ -1,0 +1,223 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1000px; /* Reduced from massive width since bento is compact */
+  margin: 0 auto;
+}
+
+.header {
+  padding-bottom: 8px;
+}
+
+.bentoSplit {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 24px;
+}
+
+.formSection {
+  min-height: 400px;
+}
+
+.listSection {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Base Bento Input Form */
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.statusBtn {
+  border: 1px solid var(--border-color);
+  background: white;
+  border-radius: 20px;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  transition: all 0.2s var(--ease-out-expo);
+}
+
+.statusIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.03);
+}
+
+.statusBtn:hover {
+  background: rgba(0,0,0,0.02);
+}
+
+.statusActiveTravel {
+  background: var(--bento-green);
+  border-color: var(--bento-green);
+  color: white;
+}
+.statusActiveTravel .statusIcon { background: rgba(255,255,255,0.2) }
+
+.statusActiveParking {
+  background: var(--bento-yellow);
+  border-color: var(--bento-yellow);
+  color: var(--text-primary);
+}
+.statusActiveParking .statusIcon { background: rgba(0,0,0,0.1) }
+
+.statusActiveHome {
+  background: var(--bento-purple);
+  border-color: var(--bento-purple);
+  color: white;
+}
+.statusActiveHome .statusIcon { background: rgba(255,255,255,0.2) }
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bentoInput {
+  background: #F2F2F2; /* Flat grey */
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 18px 20px;
+  font-size: 16px;
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.bentoInput:focus {
+  background: white;
+  border-color: var(--bento-dark);
+}
+
+.bentoInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+.submitButton {
+  padding: 20px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+  margin-top: auto;
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Water Toggles */
+.waterToggles {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.toggleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.toggleRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.toggleRow:first-of-type {
+  padding-top: 0;
+}
+
+.toggleCheck {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--bento-dark);
+  cursor: pointer;
+}
+
+/* Success Banner */
+.successBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(52, 199, 89, 0.1);
+  border-radius: 16px;
+  margin-bottom: 24px;
+  color: var(--accent-green);
+}
+
+/* Dark List Side */
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.moreBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.recordList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.recordItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.recordIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recordDetails {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .bentoSplit {
+    grid-template-columns: 1fr;
+  }
+}
