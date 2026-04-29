@@ -15,6 +15,9 @@ export interface TripDailyRecord {
   location_name: string | null
   notes: string | null
   accommodation_cost: number | null
+  daily_expenses: number | null
+  daily_expenses_notes: string | null
+  visited_places: string[]
   grey_water_emptied: boolean
   black_water_emptied: boolean
   fresh_water_filled: boolean
@@ -173,6 +176,8 @@ export async function listTrips(limit = 20) {
     acc[row.trip_id].push({
       ...row,
       accommodation_cost: row.accommodation_cost !== null ? Number(row.accommodation_cost) : null,
+      daily_expenses: row.daily_expenses !== null ? Number(row.daily_expenses) : null,
+      visited_places: row.visited_places ?? [],
     })
     return acc
   }, {})
@@ -217,6 +222,8 @@ export async function getTripDetail(id: string) {
       date: toIsoString(row.date),
       created_at: toIsoString(row.created_at),
       accommodation_cost: row.accommodation_cost !== null ? Number(row.accommodation_cost) : null,
+      daily_expenses: row.daily_expenses !== null ? Number(row.daily_expenses) : null,
+      visited_places: row.visited_places ?? [],
     })),
     fuel_logs: fuelRes.rows.map((row) => ({
       ...row,

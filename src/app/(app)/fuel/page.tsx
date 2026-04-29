@@ -27,6 +27,8 @@ const formatMoney = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value)} €`
 
+const todayIso = () => new Date().toISOString().slice(0, 10)
+
 export default function FuelPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -34,6 +36,7 @@ export default function FuelPage() {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [amount, setAmount] = useState('')
+  const [recordDate, setRecordDate] = useState(todayIso)
   const [pricePerLiter, setPricePerLiter] = useState('')
   const [odometerAt, setOdometerAt] = useState('')
   const [stationName, setStationName] = useState('')
@@ -97,7 +100,7 @@ export default function FuelPage() {
     setSuccess(false)
     try {
       await createFuelRecord({
-        date: new Date().toISOString().slice(0, 10),
+        date: recordDate,
         amount: parseFloat(amount),
         price_per_liter: parseFloat(pricePerLiter),
         odometer_at: odometerAt ? parseInt(odometerAt, 10) : null,
@@ -105,6 +108,7 @@ export default function FuelPage() {
         full_tank: fullTank,
       })
       setAmount('')
+      setRecordDate(todayIso())
       setPricePerLiter('')
       setOdometerAt('')
       setStationName('')
@@ -221,6 +225,18 @@ export default function FuelPage() {
           </div>
 
           <form onSubmit={handleSubmit} className={styles.formContainer}>
+            <div className={styles.inputGroup}>
+              <label className="text-headline">Fecha del repostaje</label>
+              <input
+                type="date"
+                className={styles.bentoInput}
+                value={recordDate}
+                onChange={(e) => setRecordDate(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+
             <div className={styles.inputGroup}>
               <label className="text-headline">Importe total</label>
               <div className={styles.inputWrapper}>

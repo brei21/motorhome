@@ -14,7 +14,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const fuel = trip.fuel_logs?.reduce((sum, record) => sum + record.amount, 0) ?? 0
   const maintenance = trip.maintenance_logs?.reduce((sum, record) => sum + (record.cost ?? 0), 0) ?? 0
-  const lodging = trip.daily_logs?.reduce((sum, record) => sum + (record.accommodation_cost ?? 0), 0) ?? 0
+  const lodging = trip.daily_logs?.reduce(
+    (sum, record) => sum + (record.accommodation_cost ?? 0) + (record.daily_expenses ?? 0),
+    0
+  ) ?? 0
   const km = trip.end_odometer ? trip.end_odometer - trip.start_odometer : null
 
   const timeline = [
@@ -23,7 +26,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       date: item.date,
       icon: CalendarDays,
       title: item.location_name || 'Registro diario',
-      text: item.notes || item.status,
+      text: [
+        item.notes || item.status,
+        item.visited_places?.length ? `Visitado: ${item.visited_places.join(', ')}` : null,
+      ].filter(Boolean).join(' · '),
     })),
     ...(trip.fuel_logs ?? []).map((item) => ({
       id: `fuel-${item.id}`,

@@ -34,7 +34,7 @@
 
 .statusGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -70,6 +70,7 @@
 
 .statusActiveTravel,
 .statusActiveParking,
+.statusActiveArea,
 .statusActiveHome {
   background: #fff7f8;
   border-color: rgba(255, 170, 77, 0.4);
@@ -77,9 +78,10 @@
 
 .statusActiveTravel .statusIcon,
 .statusActiveParking .statusIcon,
+.statusActiveArea .statusIcon,
 .statusActiveHome .statusIcon {
   background: var(--brand-orange);
-  color: white;
+  color: var(--motor-text);
 }
 
 .inputGroup {
@@ -280,6 +282,10 @@
 
 .logBadge[data-status='parking'] {
   background: #f97316;
+}
+
+.logBadge[data-status='motorhome_area'] {
+  background: #0ea5e9;
 }
 
 .logBadge[data-status='vacation_home'] {

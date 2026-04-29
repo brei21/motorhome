@@ -7,12 +7,15 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS public.daily_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     date DATE NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('travel', 'parking', 'vacation_home')),
+    status TEXT NOT NULL CHECK (status IN ('travel', 'parking', 'motorhome_area', 'vacation_home')),
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     location_name TEXT,
     notes TEXT,
     accommodation_cost NUMERIC,
+    daily_expenses NUMERIC,
+    daily_expenses_notes TEXT,
+    visited_places TEXT[] DEFAULT '{}',
     grey_water_emptied BOOLEAN DEFAULT FALSE,
     black_water_emptied BOOLEAN DEFAULT FALSE,
     fresh_water_filled BOOLEAN DEFAULT FALSE,
@@ -234,10 +237,20 @@ DROP POLICY IF EXISTS "Allow all operations for anon" ON public.auth_login_attem
 
 ALTER TABLE public.daily_logs
   ADD COLUMN IF NOT EXISTS trip_id UUID REFERENCES public.trips(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS daily_expenses NUMERIC,
+  ADD COLUMN IF NOT EXISTS daily_expenses_notes TEXT,
+  ADD COLUMN IF NOT EXISTS visited_places TEXT[] DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS photo_urls TEXT[] DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'web' NOT NULL,
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL;
+
+ALTER TABLE public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_status_check;
+
+ALTER TABLE public.daily_logs
+  ADD CONSTRAINT daily_logs_status_check
+  CHECK (status IN ('travel', 'parking', 'motorhome_area', 'vacation_home'));
 
 ALTER TABLE public.odometer_logs
   ADD COLUMN IF NOT EXISTS trip_id UUID REFERENCES public.trips(id) ON DELETE SET NULL,

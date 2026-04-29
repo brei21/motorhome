@@ -6,7 +6,7 @@ import { getActiveTrip, startTrip } from '@/app/actions/trips'
 import { getCurrentOdometer } from '@/app/actions/odometer-records'
 import { writeAuditLog } from '@/app/actions/audit'
 
-export type DailyRecordStatus = 'travel' | 'parking' | 'vacation_home'
+export type DailyRecordStatus = 'travel' | 'parking' | 'motorhome_area' | 'vacation_home'
 
 export interface DailyRecord {
   id: string
@@ -18,6 +18,9 @@ export interface DailyRecord {
   location_name: string | null
   notes: string | null
   accommodation_cost: number | null
+  daily_expenses: number | null
+  daily_expenses_notes: string | null
+  visited_places: string[]
   grey_water_emptied: boolean
   black_water_emptied: boolean
   fresh_water_filled: boolean
@@ -35,6 +38,9 @@ export async function createDailyRecord(data: {
   location_name?: string | null
   notes?: string | null
   accommodation_cost?: number | null
+  daily_expenses?: number | null
+  daily_expenses_notes?: string | null
+  visited_places?: string[]
   grey_water_emptied?: boolean
   black_water_emptied?: boolean
   fresh_water_filled?: boolean
@@ -66,8 +72,12 @@ export async function createDailyRecord(data: {
 
   const res = await query<DailyRecord>(
     `
-      INSERT INTO daily_logs (trip_id, date, status, latitude, longitude, location_name, notes, accommodation_cost, grey_water_emptied, black_water_emptied, fresh_water_filled, tags, photo_urls)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      INSERT INTO daily_logs (
+        trip_id, date, status, latitude, longitude, location_name, notes,
+        accommodation_cost, daily_expenses, daily_expenses_notes, visited_places,
+        grey_water_emptied, black_water_emptied, fresh_water_filled, tags, photo_urls
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `,
     [
@@ -79,6 +89,9 @@ export async function createDailyRecord(data: {
       data.location_name ?? null,
       data.notes ?? null,
       data.accommodation_cost ?? null,
+      data.daily_expenses ?? null,
+      data.daily_expenses_notes ?? null,
+      data.visited_places ?? [],
       data.grey_water_emptied ?? false,
       data.black_water_emptied ?? false,
       data.fresh_water_filled ?? false,
@@ -107,6 +120,8 @@ export async function getDailyRecords(limit = 20) {
   return res.rows.map((r: DailyRecord) => ({
     ...r,
     accommodation_cost: r.accommodation_cost !== null ? Number(r.accommodation_cost) : null,
+    daily_expenses: r.daily_expenses !== null ? Number(r.daily_expenses) : null,
+    visited_places: r.visited_places ?? [],
     tags: r.tags ?? [],
     photo_urls: r.photo_urls ?? [],
   }))
@@ -121,7 +136,7 @@ export async function getStatsByStatus() {
       acc: Record<DailyRecordStatus, number>,
       row: { status: DailyRecordStatus; count: string }
     ) => ({ ...acc, [row.status]: parseInt(row.count, 10) }),
-    { travel: 0, parking: 0, vacation_home: 0 }
+    { travel: 0, parking: 0, motorhome_area: 0, vacation_home: 0 }
   )
 }
 
@@ -153,7 +168,7 @@ export async function getLatestLocation() {
 
 export async function getTotalAccommodationCost() {
   const res = await query<{ total: string | null }>(
-    `SELECT SUM(accommodation_cost)::text as total FROM daily_logs`
+    `SELECT SUM(COALESCE(accommodation_cost, 0) + COALESCE(daily_expenses, 0))::text as total FROM daily_logs`
   )
   return res.rows[0]?.total ? parseFloat(res.rows[0].total) : 0
 }

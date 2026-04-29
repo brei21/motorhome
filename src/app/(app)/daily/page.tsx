@@ -9,6 +9,7 @@ import styles from './page.module.css'
 
 interface FieldErrors {
   accommodationCost?: string
+  dailyExpenses?: string
 }
 
 function getCurrentPosition() {
@@ -36,7 +37,10 @@ export default function DailyPage() {
   const [status, setStatus] = useState<DailyRecordStatus>('travel')
   const [locationName, setLocationName] = useState('')
   const [notes, setNotes] = useState('')
+  const [visitedPlaces, setVisitedPlaces] = useState('')
   const [accommodationCost, setAccommodationCost] = useState('')
+  const [dailyExpenses, setDailyExpenses] = useState('')
+  const [dailyExpensesNotes, setDailyExpensesNotes] = useState('')
   const [greyWater, setGreyWater] = useState(false)
   const [blackWater, setBlackWater] = useState(false)
   const [freshWater, setFreshWater] = useState(false)
@@ -63,7 +67,7 @@ export default function DailyPage() {
   }
 
   const validateField = (field: string, value: string): string | undefined => {
-    if (field === 'accommodationCost' && value) {
+    if ((field === 'accommodationCost' || field === 'dailyExpenses') && value) {
       const num = parseFloat(value)
       if (isNaN(num) || num < 0) {
         return 'El importe debe ser un número positivo'
@@ -81,11 +85,19 @@ export default function DailyPage() {
       const err = validateField(field, value)
       setErrors(prev => ({ ...prev, [field]: err }))
     }
+    if (field === 'dailyExpenses') {
+      setDailyExpenses(value)
+      const err = validateField(field, value)
+      setErrors(prev => ({ ...prev, [field]: err }))
+    }
   }
 
   const handleInputBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }))
-    const err = validateField(field, field === 'accommodationCost' ? accommodationCost : '')
+    const err = validateField(
+      field,
+      field === 'accommodationCost' ? accommodationCost : field === 'dailyExpenses' ? dailyExpenses : ''
+    )
     if (err) {
       setErrors(prev => ({ ...prev, [field]: err }))
     }
@@ -97,9 +109,10 @@ export default function DailyPage() {
     setGpsMessage(null)
 
     const costError = validateField('accommodationCost', accommodationCost)
-    if (costError) {
-      setErrors({ accommodationCost: costError })
-      setTouched({ accommodationCost: true })
+    const dailyExpensesError = validateField('dailyExpenses', dailyExpenses)
+    if (costError || dailyExpensesError) {
+      setErrors({ accommodationCost: costError, dailyExpenses: dailyExpensesError })
+      setTouched({ accommodationCost: true, dailyExpenses: true })
       return
     }
 
@@ -159,6 +172,12 @@ export default function DailyPage() {
         location_name: resolvedLocationName,
         notes: notes || null,
         accommodation_cost: accommodationCost ? parseFloat(accommodationCost) : null,
+        daily_expenses: dailyExpenses ? parseFloat(dailyExpenses) : null,
+        daily_expenses_notes: dailyExpensesNotes || null,
+        visited_places: visitedPlaces
+          .split(',')
+          .map((place) => place.trim())
+          .filter(Boolean),
         grey_water_emptied: greyWater,
         black_water_emptied: blackWater,
         fresh_water_filled: freshWater,
@@ -169,7 +188,10 @@ export default function DailyPage() {
       setSuccess(true)
       setLocationName('')
       setNotes('')
+      setVisitedPlaces('')
       setAccommodationCost('')
+      setDailyExpenses('')
+      setDailyExpensesNotes('')
       setGreyWater(false)
       setBlackWater(false)
       setFreshWater(false)
@@ -201,14 +223,15 @@ export default function DailyPage() {
     { label: 'Día de ruta', value: 'Día de ruta con parada principal en ' },
     { label: 'Camping', value: 'Noche en camping. Servicios usados: ' },
     { label: 'Parking', value: 'Parking tranquilo. Ruido, seguridad y acceso: ' },
+    { label: 'Área AC', value: 'Área de autocaravanas. Servicios, ruido y accesos: ' },
     { label: 'Avería', value: 'Incidencia detectada: ' },
     { label: 'Ferry/frontera', value: 'Trámite de ferry/frontera: ' },
   ]
-  const availableTags = ['naturaleza', 'ciudad', 'avería', 'lluvia', 'camping', 'gasto alto', 'recomendado']
+  const availableTags = ['naturaleza', 'ciudad', 'avería', 'lluvia', 'camping', 'área AC', 'gasto alto', 'recomendado']
   const filteredRecords = records.filter((record) => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return true
-    return [record.location_name, record.notes, ...(record.tags ?? [])]
+    return [record.location_name, record.notes, record.daily_expenses_notes, ...(record.visited_places ?? []), ...(record.tags ?? [])]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(query))
   })
@@ -288,6 +311,16 @@ export default function DailyPage() {
                 <span className="text-headline">En Parking</span>
               </button>
 
+              <button
+                type="button"
+                className={`${styles.statusBtn} ${status === 'motorhome_area' ? styles.statusActiveArea : ''}`}
+                onClick={() => setStatus('motorhome_area')}
+                disabled={loading}
+              >
+                <div className={styles.statusIcon}><MapPin size={24} /></div>
+                <span className="text-headline">Área AC</span>
+              </button>
+
               <button 
                 type="button" 
                 className={`${styles.statusBtn} ${status === 'vacation_home' ? styles.statusActiveHome : ''}`}
@@ -297,6 +330,21 @@ export default function DailyPage() {
                 <div className={styles.statusIcon}><Home size={24} /></div>
                 <span className="text-headline">En Casa</span>
               </button>
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label className="text-headline">Lugares visitados durante el día</label>
+              <input
+                type="text"
+                className={styles.bentoInput}
+                placeholder="Ej. Faro de Fisterra, playa de Langosteira, casco antiguo"
+                value={visitedPlaces}
+                onChange={(e) => setVisitedPlaces(e.target.value)}
+                disabled={loading}
+              />
+              <p className="text-subhead" style={{ color: 'var(--text-secondary)' }}>
+                Separa varios lugares con comas. La ubicación GPS queda como sitio de pernocta o posición guardada.
+              </p>
             </div>
 
             <div className={styles.inputGroup}>
@@ -405,6 +453,38 @@ export default function DailyPage() {
               )}
             </div>
 
+            <div className={styles.inputGroup}>
+              <label className="text-headline">Otros gastos del día (Opcional)</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <span style={{ position: 'absolute', left: 16, fontSize: 16, color: hasError('dailyExpenses') ? 'var(--accent-red)' : 'var(--text-secondary)', zIndex: 2, fontWeight: 600 }}>€</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className={`${styles.bentoInput} ${hasError('dailyExpenses') ? styles.bentoInputError : ''}`}
+                  placeholder="0.00  (comida, peajes, entradas, compras...)"
+                  value={dailyExpenses}
+                  onChange={(e) => handleInputChange('dailyExpenses', e.target.value)}
+                  onBlur={() => handleInputBlur('dailyExpenses')}
+                  disabled={loading}
+                  style={{ paddingLeft: 36 }}
+                />
+              </div>
+              <input
+                type="text"
+                className={styles.bentoInput}
+                placeholder="Detalle opcional: mercado, peaje, museo..."
+                value={dailyExpensesNotes}
+                onChange={(e) => setDailyExpensesNotes(e.target.value)}
+                disabled={loading}
+              />
+              {hasError('dailyExpenses') && (
+                <p className="text-subhead" style={{ marginTop: 8, color: 'var(--accent-red)' }}>
+                  {errors.dailyExpenses}
+                </p>
+              )}
+            </div>
+
             <div className={styles.waterToggles}>
               <span className="text-headline" style={{ marginBottom: 16, display: 'block' }}>Depósitos de Agua</span>
               
@@ -495,16 +575,27 @@ export default function DailyPage() {
             {!recordsLoading && filteredRecords.map(item => (
               <article key={item.id} className={styles.logItem} role="listitem">
                 <div className={styles.logBadge} data-status={item.status}>
-                  {item.status === 'travel' ? <Navigation size={14} /> : item.status === 'parking' ? <MapPin size={14} /> : <Home size={14} />}
+                  {item.status === 'travel' ? <Navigation size={14} /> : item.status === 'vacation_home' ? <Home size={14} /> : <MapPin size={14} />}
                 </div>
                 <div className={styles.logText}>
                   <span className="text-body" style={{ fontWeight: 700 }}>
-                    {item.status === 'travel' ? 'De Viaje' : item.status === 'parking' ? 'En Parking' : 'En Casa'}
+                    {item.status === 'travel' ? 'De Viaje' : item.status === 'parking' ? 'En Parking' : item.status === 'motorhome_area' ? 'Área AC' : 'En Casa'}
                   </span>
                   <span className="text-subhead" style={{ color: 'var(--text-secondary)' }}>
                     {item.date}{item.location_name ? ` · ${item.location_name}` : ''}
                   </span>
+                  {item.visited_places && item.visited_places.length > 0 && (
+                    <span className={styles.recordNote}>Visitado: {item.visited_places.join(', ')}</span>
+                  )}
                   {item.notes && <span className={styles.recordNote}>{item.notes}</span>}
+                  {(item.accommodation_cost || item.daily_expenses) && (
+                    <span className={styles.recordNote}>
+                      Gastos: {[
+                        item.accommodation_cost ? `alojamiento ${Number(item.accommodation_cost).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €` : null,
+                        item.daily_expenses ? `día ${Number(item.daily_expenses).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €` : null,
+                      ].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
                   {item.tags && item.tags.length > 0 && (
                     <div className={styles.tagList}>
                       {item.tags.map((tag) => <span key={tag}>{tag}</span>)}

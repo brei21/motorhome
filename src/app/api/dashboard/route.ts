@@ -24,6 +24,10 @@ export async function GET() {
     (sum, record) => sum + (record.cost ? Number(record.cost) : 0),
     0
   )
+  const totalDaily = dailyLogs.reduce(
+    (sum, record) => sum + (Number(record.accommodation_cost) || 0) + (Number(record.daily_expenses) || 0),
+    0
+  )
 
   return NextResponse.json({
     activeTrip,
@@ -37,7 +41,8 @@ export async function GET() {
     totals: {
       fuel: totalFuel,
       maintenance: totalMaintenance,
-      overall: totalFuel + totalMaintenance,
+      daily: totalDaily,
+      overall: totalFuel + totalMaintenance + totalDaily,
     },
   })
 }

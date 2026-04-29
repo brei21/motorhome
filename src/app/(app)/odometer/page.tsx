@@ -258,7 +258,7 @@ export default function OdometerPage() {
   const tripActive = !!activeRemoteTrip && !activeRemoteTrip.ended_at
   const formatNumber = (v: number | null) => (v === null ? '—' : v.toLocaleString('es-ES'))
   const dailyStatusLabel = (status: string) =>
-    status === 'travel' ? 'De viaje' : status === 'parking' ? 'En parking' : 'En casa'
+    status === 'travel' ? 'De viaje' : status === 'parking' ? 'En parking' : status === 'motorhome_area' ? 'Área AC' : 'En casa'
 
   const handleStartTrip = async () => {
     const startVal = parseInt(tripStartOdo, 10)

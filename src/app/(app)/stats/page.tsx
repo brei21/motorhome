@@ -1,4 +1,4 @@
-import { getStatsByStatus } from '@/app/actions/daily-records'
+import { getStatsByStatus, getTotalAccommodationCost } from '@/app/actions/daily-records'
 import { getTotalKilometers } from '@/app/actions/odometer-records'
 import { getTotalMaintenanceCost } from '@/app/actions/maintenance-records'
 import { getTotalFuelCost } from '@/app/actions/fuel-records'
@@ -9,15 +9,16 @@ import styles from './page.module.css'
 export const revalidate = 0 // Disable cache for this page so stats are always fresh
 
 export default async function StatsPage() {
-  const [dailyStats, totalKm, totalMaintenance, totalFuel] = await Promise.all([
+  const [dailyStats, totalKm, totalMaintenance, totalFuel, totalDaily] = await Promise.all([
     getStatsByStatus(),
     getTotalKilometers(),
     getTotalMaintenanceCost(),
     getTotalFuelCost(),
+    getTotalAccommodationCost(),
   ])
 
-  const totalDays = dailyStats.travel + dailyStats.parking + dailyStats.vacation_home
-  const hasData = totalDays > 0 || totalKm > 0 || totalMaintenance > 0 || totalFuel > 0
+  const totalDays = dailyStats.travel + dailyStats.parking + dailyStats.motorhome_area + dailyStats.vacation_home
+  const hasData = totalDays > 0 || totalKm > 0 || totalMaintenance > 0 || totalFuel > 0 || totalDaily > 0
   const formatNumber = (n: number) => new Intl.NumberFormat('es-ES').format(n)
   const formatMoney = (n: number) =>
     `${new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} €`
@@ -62,7 +63,7 @@ export default async function StatsPage() {
           </div>
           <div className={styles.summaryPill}>
             <span className={styles.summaryLabel}>Gasto</span>
-            <strong>{formatMoney(totalFuel + totalMaintenance)}</strong>
+            <strong>{formatMoney(totalFuel + totalMaintenance + totalDaily)}</strong>
           </div>
         </div>
       </section>
@@ -118,10 +119,18 @@ export default async function StatsPage() {
             </div>
             <div>
               <h2 className={styles.cardTitle}>Gastos totales</h2>
-              <p className={styles.cardSubtitle}>Taller y combustible</p>
+              <p className={styles.cardSubtitle}>Diario, taller y combustible</p>
             </div>
           </div>
           <div className={styles.cardContent}>
+            <div className={styles.statRow}>
+              <span className="text-body">
+                <MapPin size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: 'text-bottom' }} />
+                Diario
+              </span>
+              <span className={styles.statValue}>{formatMoney(totalDaily)}</span>
+            </div>
+            <div className={styles.divider} />
             <div className={styles.statRow}>
               <span className="text-body">
                 <Wrench size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: 'text-bottom' }} />
@@ -162,6 +171,10 @@ export default async function StatsPage() {
             />
             <div
               className={styles.progressBarWrapper}
+              style={{ width: `${totalDays > 0 ? (dailyStats.motorhome_area / totalDays) * 100 : 0}%`, background: '#0ea5e9' }}
+            />
+            <div
+              className={styles.progressBarWrapper}
               style={{ width: `${totalDays > 0 ? (dailyStats.vacation_home / totalDays) * 100 : 0}%`, background: '#8b5cf6' }}
             />
           </div>
@@ -176,6 +189,11 @@ export default async function StatsPage() {
               <div className={styles.legendDot} style={{ background: '#f97316' }} />
               <MapPin size={14} className={styles.legendIcon} />
               <span className="text-subhead">Parking ({dailyStats.parking} d)</span>
+            </div>
+            <div className={styles.legendItem}>
+              <div className={styles.legendDot} style={{ background: '#0ea5e9' }} />
+              <MapPin size={14} className={styles.legendIcon} />
+              <span className="text-subhead">Área AC ({dailyStats.motorhome_area} d)</span>
             </div>
             <div className={styles.legendItem}>
               <div className={styles.legendDot} style={{ background: '#8b5cf6' }} />

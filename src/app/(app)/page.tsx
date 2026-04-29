@@ -41,6 +41,7 @@ export default async function Dashboard() {
         totals: {
           fuel: totalFuel,
           maintenance: totalMaintenance,
+          daily: 0,
           overall: totalFuel + totalMaintenance,
         },
       }}

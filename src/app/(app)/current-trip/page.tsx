@@ -17,7 +17,10 @@ export default async function CurrentTripPage() {
   const km = trip ? Math.max(0, (currentOdometer || trip.start_odometer) - trip.start_odometer) : 0
   const fuelTotal = trip?.fuel_logs?.reduce((sum, item) => sum + item.amount, 0) ?? 0
   const maintenanceTotal = trip?.maintenance_logs?.reduce((sum, item) => sum + (item.cost ?? 0), 0) ?? 0
-  const dailyTotal = trip?.daily_logs?.reduce((sum, item) => sum + (item.accommodation_cost ?? 0), 0) ?? 0
+  const dailyTotal = trip?.daily_logs?.reduce(
+    (sum, item) => sum + (item.accommodation_cost ?? 0) + (item.daily_expenses ?? 0),
+    0
+  ) ?? 0
   const timelineCount = (trip?.daily_logs?.length ?? 0) + (trip?.fuel_logs?.length ?? 0) + (trip?.maintenance_logs?.length ?? 0)
 
   return (

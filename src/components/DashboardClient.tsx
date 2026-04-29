@@ -20,7 +20,7 @@ type Trip = {
 type DailyLog = {
   id: string
   date: string | Date
-  status: 'travel' | 'parking' | 'vacation_home'
+  status: 'travel' | 'parking' | 'motorhome_area' | 'vacation_home'
   latitude: number | null
   longitude: number | null
   location_name: string | null
@@ -70,6 +70,7 @@ type DashboardPayload = {
   totals: {
     fuel: number
     maintenance: number
+    daily: number
     overall: number
   }
 }
@@ -79,6 +80,7 @@ const FALLBACK_CITY = 'Sin datos'
 const statusText: Record<DailyLog['status'], string> = {
   travel: 'De viaje',
   parking: 'En parking',
+  motorhome_area: 'Área AC',
   vacation_home: 'En casa',
 }
 

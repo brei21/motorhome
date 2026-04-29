@@ -23,10 +23,13 @@ const typeTitle: Record<MaintenanceType, string> = {
   repair: 'Avería',
 }
 
+const todayIso = () => new Date().toISOString().slice(0, 10)
+
 export default function MaintenancePage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [type, setType] = useState<MaintenanceType>('maintenance')
+  const [recordDate, setRecordDate] = useState(todayIso)
   const [description, setDescription] = useState('')
   const [cost, setCost] = useState('')
   const [odometerAt, setOdometerAt] = useState('')
@@ -67,7 +70,7 @@ export default function MaintenancePage() {
     setError(null)
     try {
       await createMaintenanceRecord({
-        date: new Date().toISOString().slice(0, 10),
+        date: recordDate,
         type,
         description,
         cost: cost ? parseFloat(cost) : null,
@@ -76,6 +79,7 @@ export default function MaintenancePage() {
         due_date: dueDate || null,
       })
       setSuccess(true)
+      setRecordDate(todayIso())
       setDescription('')
       setCost('')
       setDueOdometer('')
@@ -147,6 +151,18 @@ export default function MaintenancePage() {
           )}
 
           <form onSubmit={handleSubmit} className={styles.formContainer}>
+            <div className={styles.inputGroup}>
+              <label className="text-headline">Fecha del registro</label>
+              <input
+                type="date"
+                className={styles.bentoInput}
+                value={recordDate}
+                onChange={(e) => setRecordDate(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+
             <div className={styles.typeGrid}>
               <button type="button" className={`${styles.typeBtn} ${type === 'maintenance' ? styles.typeActiveBlue : ''}`} onClick={() => setType('maintenance')}>
                 <ShieldCheck size={24} />
