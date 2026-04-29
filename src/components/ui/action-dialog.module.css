@@ -1,0 +1,133 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(21, 21, 21, 0.38);
+  backdrop-filter: blur(12px);
+}
+
+.dialog {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 22px;
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.dot,
+.dangerDot {
+  width: 14px;
+  height: 14px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: var(--brand-orange);
+  box-shadow: 0 0 0 8px var(--brand-orange-soft);
+}
+
+.dangerDot {
+  background: #dc2626;
+  box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.11);
+}
+
+.header h2 {
+  margin: 0;
+  color: var(--motor-text);
+  font-size: 24px;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.header p {
+  margin: 8px 0 0;
+  color: var(--motor-text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  color: var(--motor-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.field input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: white;
+  color: var(--motor-text);
+  font: inherit;
+  font-weight: 600;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--brand-orange);
+  box-shadow: 0 0 0 4px rgba(255, 170, 77, 0.16);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancel,
+.confirm,
+.danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.cancel {
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: white;
+  color: var(--motor-text);
+}
+
+.confirm {
+  background: var(--brand-orange);
+  color: var(--motor-text);
+}
+
+.danger {
+  background: #dc2626;
+  color: white;
+}
+
+.confirm:disabled,
+.danger:disabled,
+.cancel:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 560px) {
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

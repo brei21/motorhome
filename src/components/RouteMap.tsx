@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -31,7 +31,7 @@ export interface Waypoint {
   type: 'start' | 'intermediate' | 'end'
 }
 
-interface RouteMapProps {
+export interface RouteMapProps {
   waypoints: Waypoint[]
   routeGeometry?: [number, number][]
   currentLocation?: { lat: number, lng: number }
@@ -73,20 +73,6 @@ function MapResizer() {
 }
 
 export default function RouteMap({ waypoints, routeGeometry, currentLocation, onMapClick, className = '' }: RouteMapProps) {
-  const [isMounted, setIsMounted] = useState(false)
-
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  if (!isMounted) {
-    return (
-      <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.1)', height: '100%', width: '100%' }}>
-        <span style={{ color: 'var(--text-primary)' }}>Cargando ruta...</span>
-      </div>
-    )
-  }
-
   const positionsToDraw: [number, number][] = routeGeometry && routeGeometry.length > 0 
     ? routeGeometry 
     : waypoints.map(w => [w.lat, w.lng])

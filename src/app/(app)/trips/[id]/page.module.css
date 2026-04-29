@@ -1,0 +1,126 @@
+.page {
+  display: grid;
+  gap: 18px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.back {
+  color: var(--brand-orange);
+  font-weight: 800;
+}
+
+.header,
+.metrics div,
+.timeline,
+.mapBox {
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: white;
+  border-radius: 26px;
+}
+
+.header {
+  display: grid;
+  gap: 8px;
+  padding: 26px;
+}
+
+.kicker {
+  font-family: var(--font-space-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--brand-orange);
+}
+
+.header h1 {
+  font-size: clamp(32px, 5vw, 58px);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+.header p {
+  color: var(--motor-text-secondary);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metrics div {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+}
+
+.metrics span {
+  color: var(--motor-text-secondary);
+  font-family: var(--font-space-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.metrics strong {
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.mapBox {
+  display: flex;
+  gap: 12px;
+  padding: 18px;
+}
+
+.mapBox svg {
+  color: var(--brand-orange);
+}
+
+.mapBox div,
+.timelineItem div {
+  display: grid;
+  gap: 4px;
+}
+
+.mapBox span,
+.timelineItem span {
+  color: var(--motor-text-secondary);
+  font-size: 14px;
+}
+
+.timeline {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+}
+
+.timeline h2 {
+  font-size: 22px;
+}
+
+.timelineItem,
+.empty {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fafafa;
+}
+
+.timelineItem svg {
+  color: var(--brand-orange);
+  flex-shrink: 0;
+}
+
+.empty {
+  color: var(--motor-text-secondary);
+}
+
+@media (max-width: 720px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+}

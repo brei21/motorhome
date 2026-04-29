@@ -1,5 +1,5 @@
 import TopNavigation from '@/components/TopNavigation'
-import styles from './page.module.css'
+import BottomNavigation from '@/components/BottomNavigation'
 
 export default function DashboardLayout({
   children,
@@ -9,10 +9,12 @@ export default function DashboardLayout({
   return (
     <>
       <TopNavigation />
-      
+
       <main className="main-content">
         {children}
       </main>
+
+      <BottomNavigation />
     </>
   )
 }

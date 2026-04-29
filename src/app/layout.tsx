@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Motorhome Dashboard",
-  description: "Advanced iPad management system for your Motorhome",
+  title: "Motorhome",
+  description: "Cuaderno digital para gestionar rutas, mantenimiento, combustible y registro diario de tu autocaravana.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -12,11 +12,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f2f2f7",
+  themeColor: "#FAFAFA",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false, // Prevents zooming on inputs in iOS
   viewportFit: "cover",
 };
 
@@ -27,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body>
+      <body suppressHydrationWarning className="antialiased">
         <div className="app-container">
           {children}
         </div>

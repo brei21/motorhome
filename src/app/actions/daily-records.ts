@@ -1,11 +1,16 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { query } from '@/lib/db'
+import { getActiveTrip, startTrip } from '@/app/actions/trips'
+import { getCurrentOdometer } from '@/app/actions/odometer-records'
+import { writeAuditLog } from '@/app/actions/audit'
 
 export type DailyRecordStatus = 'travel' | 'parking' | 'vacation_home'
 
 export interface DailyRecord {
   id: string
+  trip_id: string | null
   date: string
   status: DailyRecordStatus
   latitude: number | null
@@ -16,20 +21,15 @@ export interface DailyRecord {
   grey_water_emptied: boolean
   black_water_emptied: boolean
   fresh_water_filled: boolean
+  tags: string[]
+  photo_urls: string[]
   created_at: string
-}
-
-const globalAny: any = global
-if (!globalAny.mockLocation) {
-  globalAny.mockLocation = { lat: 41.3851, lng: 2.1734 }
-}
-if (!globalAny.mockTotalAccommodation) {
-  globalAny.mockTotalAccommodation = 346
 }
 
 export async function createDailyRecord(data: {
   date: string
   status: DailyRecordStatus
+  trip_id?: string | null
   latitude?: number | null
   longitude?: number | null
   location_name?: string | null
@@ -38,43 +38,122 @@ export async function createDailyRecord(data: {
   grey_water_emptied?: boolean
   black_water_emptied?: boolean
   fresh_water_filled?: boolean
+  tags?: string[]
+  photo_urls?: string[]
 }) {
-  // Mock delay
-  await new Promise(resolve => setTimeout(resolve, 800))
+  let tripId = data.trip_id ?? null
 
-  if (data.latitude && data.longitude) {
-    globalAny.mockLocation = { lat: data.latitude, lng: data.longitude }
+  if (data.status === 'travel' && !tripId) {
+    const activeTrip = await getActiveTrip()
+
+    if (activeTrip) {
+      tripId = activeTrip.id
+    } else {
+      const currentOdometer = await getCurrentOdometer()
+      const createdTrip = await startTrip({
+        start_odometer: currentOdometer,
+        start_location: data.location_name ?? null,
+        notes: data.notes ?? null,
+      })
+      tripId = createdTrip.id
+      await writeAuditLog({
+        action: 'trip.auto_started_from_daily',
+        entity: 'trips',
+        entity_id: tripId,
+      })
+    }
   }
 
-  // Accumulate accommodation cost
-  if (data.accommodation_cost && data.accommodation_cost > 0) {
-    globalAny.mockTotalAccommodation = (globalAny.mockTotalAccommodation || 0) + data.accommodation_cost
-  }
+  const res = await query<DailyRecord>(
+    `
+      INSERT INTO daily_logs (trip_id, date, status, latitude, longitude, location_name, notes, accommodation_cost, grey_water_emptied, black_water_emptied, fresh_water_filled, tags, photo_urls)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING *
+    `,
+    [
+      tripId,
+      data.date,
+      data.status,
+      data.latitude ?? null,
+      data.longitude ?? null,
+      data.location_name ?? null,
+      data.notes ?? null,
+      data.accommodation_cost ?? null,
+      data.grey_water_emptied ?? false,
+      data.black_water_emptied ?? false,
+      data.fresh_water_filled ?? false,
+      data.tags ?? [],
+      data.photo_urls ?? [],
+    ]
+  )
 
   revalidatePath('/')
-  return { ...data, id: 'mock-1', created_at: new Date().toISOString() } as DailyRecord
+  revalidatePath('/daily')
+  revalidatePath('/odometer')
+  await writeAuditLog({
+    action: 'daily_log.created',
+    entity: 'daily_logs',
+    entity_id: res.rows[0]?.id,
+    metadata: { status: data.status, trip_id: tripId },
+  })
+  return res.rows[0]
 }
 
-export async function getDailyRecords(limit = 30) {
-  return [] as DailyRecord[]
+export async function getDailyRecords(limit = 20) {
+  const res = await query<DailyRecord>(
+    `SELECT * FROM daily_logs ORDER BY date DESC, created_at DESC LIMIT $1`,
+    [limit]
+  )
+  return res.rows.map((r: DailyRecord) => ({
+    ...r,
+    accommodation_cost: r.accommodation_cost !== null ? Number(r.accommodation_cost) : null,
+    tags: r.tags ?? [],
+    photo_urls: r.photo_urls ?? [],
+  }))
 }
 
 export async function getStatsByStatus() {
-  return { travel: 12, parking: 4, vacation_home: 2 }
+  const res = await query<{ status: DailyRecordStatus; count: string }>(
+    `SELECT status, COUNT(*)::text as count FROM daily_logs GROUP BY status`
+  )
+  return res.rows.reduce<Record<DailyRecordStatus, number>>(
+    (
+      acc: Record<DailyRecordStatus, number>,
+      row: { status: DailyRecordStatus; count: string }
+    ) => ({ ...acc, [row.status]: parseInt(row.count, 10) }),
+    { travel: 0, parking: 0, vacation_home: 0 }
+  )
 }
 
 export async function getWaterStats() {
+  const res = await query<{ grey: number; black: number; fresh: number }>(
+    `
+      SELECT
+        COUNT(*) FILTER (WHERE grey_water_emptied) AS grey,
+        COUNT(*) FILTER (WHERE black_water_emptied) AS black,
+        COUNT(*) FILTER (WHERE fresh_water_filled) AS fresh
+      FROM daily_logs
+    `
+  )
+  const row = res.rows[0] || { grey: 0, black: 0, fresh: 0 }
   return {
-    grey_water: 3,
-    black_water: 2,
-    fresh_water: 4
+    grey_water: Number(row.grey) || 0,
+    black_water: Number(row.black) || 0,
+    fresh_water: Number(row.fresh) || 0,
   }
 }
 
 export async function getLatestLocation() {
-  return globalAny.mockLocation as { lat: number, lng: number }
+  const res = await query<{ latitude: number | null; longitude: number | null }>(
+    `SELECT latitude, longitude FROM daily_logs WHERE latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY date DESC, created_at DESC LIMIT 1`
+  )
+  const row = res.rows[0]
+  return row ? { lat: row.latitude, lng: row.longitude } : { lat: 41.3851, lng: 2.1734 }
 }
 
 export async function getTotalAccommodationCost() {
-  return (globalAny.mockTotalAccommodation || 346) as number
+  const res = await query<{ total: string | null }>(
+    `SELECT SUM(accommodation_cost)::text as total FROM daily_logs`
+  )
+  return res.rows[0]?.total ? parseFloat(res.rows[0].total) : 0
 }
