@@ -15,6 +15,7 @@ const navItems = [
   { href: '/odometer', label: 'Ruta' },
   { href: '/maintenance', label: 'Taller' },
   { href: '/fuel', label: 'Gasolina' },
+  { href: '/lpg', label: 'GLP' },
   { href: '/stats', label: 'Archivo' },
 ]
 

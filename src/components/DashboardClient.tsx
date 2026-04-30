@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Calendar, Fuel, Gauge, Home, MapPin, Navigation, WalletCards, Wrench } from 'lucide-react'
+import { Calendar, Flame, Fuel, Gauge, Home, MapPin, Navigation, WalletCards, Wrench } from 'lucide-react'
 import Link from 'next/link'
 import styles from '@/app/(app)/page.module.css'
 
@@ -36,6 +36,16 @@ type FuelLog = {
   price_per_liter: number
 }
 
+type LpgLog = {
+  id: string
+  date: string | Date
+  amount: number
+  quantity: number
+  unit: 'liters' | 'kg'
+  price_per_unit: number | null
+  usage_type: 'cooking' | 'heating' | 'mixed' | 'other'
+}
+
 type MaintenanceLog = {
   id: string
   date: string | Date
@@ -63,12 +73,14 @@ type DashboardPayload = {
   trips: Trip[]
   dailyLogs: DailyLog[]
   fuelLogs: FuelLog[]
+  lpgLogs: LpgLog[]
   maintenanceLogs: MaintenanceLog[]
   vehicleProfile: VehicleProfile | null
   vehicleDocuments: VehicleDocument[]
   currentOdometer: number
   totals: {
     fuel: number
+    lpg: number
     maintenance: number
     daily: number
     overall: number
@@ -148,10 +160,12 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
 
   const latestDaily = data.dailyLogs[0] ?? null
   const lastFuel = data.fuelLogs[0] ?? null
+  const lastLpg = data.lpgLogs[0] ?? null
   const tripActive = !!data.activeTrip && !data.activeTrip.ended_at
   const hasAnyData =
     data.dailyLogs.length > 0 ||
     data.fuelLogs.length > 0 ||
+    data.lpgLogs.length > 0 ||
     data.maintenanceLogs.length > 0 ||
     data.trips.length > 0 ||
     data.currentOdometer > 0
@@ -346,6 +360,16 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             <span className={styles.metricLabel}>{lastFuel ? `Ultimo: ${formatDate(lastFuel.date)}` : 'Sin repostajes'}</span>
           </div>
         </div>
+
+        <div className={styles.metricItem}>
+          <div className={styles.metricIcon} style={{ background: '#fff7ed', color: '#ea580c' }}>
+            <Flame size={20} />
+          </div>
+          <div className={styles.metricData}>
+            <span className={styles.metricValue}>{lastLpg ? formatMoney(lastLpg.amount) : '—'}</span>
+            <span className={styles.metricLabel}>{lastLpg ? `GLP: ${formatDate(lastLpg.date)}` : 'Sin GLP'}</span>
+          </div>
+        </div>
       </motion.section>
 
       <motion.div
@@ -368,6 +392,23 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             </div>
           ) : (
             <span className={styles.cardEmpty}>Aun no hay repostajes registrados.</span>
+          )}
+        </div>
+
+        <div className={styles.infoCard}>
+          <div className={styles.cardHeaderLine}>
+            <h3 className={styles.cardTitle}>Último GLP</h3>
+            <span className={styles.cardMeta}>{lastLpg ? formatDate(lastLpg.date) : 'Pendiente'}</span>
+          </div>
+          {lastLpg ? (
+            <div className={styles.fuelInfo}>
+              <span className={styles.fuelAmount}>{formatMoney(lastLpg.amount)}</span>
+              <span className={styles.fuelLiters}>
+                {new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(lastLpg.quantity)} {lastLpg.unit === 'liters' ? 'L' : 'kg'}
+              </span>
+            </div>
+          ) : (
+            <span className={styles.cardEmpty}>Aun no hay GLP registrado.</span>
           )}
         </div>
 

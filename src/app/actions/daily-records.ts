@@ -7,6 +7,15 @@ import { getCurrentOdometer } from '@/app/actions/odometer-records'
 import { writeAuditLog } from '@/app/actions/audit'
 
 export type DailyRecordStatus = 'travel' | 'parking' | 'motorhome_area' | 'vacation_home'
+export type DailyStopType = 'start' | 'visit' | 'overnight' | 'service' | 'other'
+
+export interface DailyStop {
+  type: DailyStopType
+  name: string
+  notes?: string | null
+  latitude?: number | null
+  longitude?: number | null
+}
 
 export interface DailyRecord {
   id: string
@@ -21,6 +30,7 @@ export interface DailyRecord {
   daily_expenses: number | null
   daily_expenses_notes: string | null
   visited_places: string[]
+  stops: DailyStop[]
   grey_water_emptied: boolean
   black_water_emptied: boolean
   fresh_water_filled: boolean
@@ -41,6 +51,7 @@ export async function createDailyRecord(data: {
   daily_expenses?: number | null
   daily_expenses_notes?: string | null
   visited_places?: string[]
+  stops?: DailyStop[]
   grey_water_emptied?: boolean
   black_water_emptied?: boolean
   fresh_water_filled?: boolean
@@ -70,14 +81,19 @@ export async function createDailyRecord(data: {
     }
   }
 
+  const stops = normalizeDailyStops(data.stops ?? [])
+  const visitedPlaces = data.visited_places?.length
+    ? data.visited_places
+    : stops.map((stop) => stop.name).filter(Boolean)
+
   const res = await query<DailyRecord>(
     `
       INSERT INTO daily_logs (
         trip_id, date, status, latitude, longitude, location_name, notes,
-        accommodation_cost, daily_expenses, daily_expenses_notes, visited_places,
+        accommodation_cost, daily_expenses, daily_expenses_notes, visited_places, stops,
         grey_water_emptied, black_water_emptied, fresh_water_filled, tags, photo_urls
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17)
       RETURNING *
     `,
     [
@@ -91,7 +107,8 @@ export async function createDailyRecord(data: {
       data.accommodation_cost ?? null,
       data.daily_expenses ?? null,
       data.daily_expenses_notes ?? null,
-      data.visited_places ?? [],
+      visitedPlaces,
+      JSON.stringify(stops),
       data.grey_water_emptied ?? false,
       data.black_water_emptied ?? false,
       data.fresh_water_filled ?? false,
@@ -122,9 +139,37 @@ export async function getDailyRecords(limit = 20) {
     accommodation_cost: r.accommodation_cost !== null ? Number(r.accommodation_cost) : null,
     daily_expenses: r.daily_expenses !== null ? Number(r.daily_expenses) : null,
     visited_places: r.visited_places ?? [],
+    stops: normalizeDailyStops(r.stops ?? []),
     tags: r.tags ?? [],
     photo_urls: r.photo_urls ?? [],
   }))
+}
+
+function normalizeDailyStops(value: unknown): DailyStop[] {
+  if (!Array.isArray(value)) return []
+
+  const stops: DailyStop[] = []
+
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const raw = item as Record<string, unknown>
+    const name = typeof raw.name === 'string' ? raw.name.trim() : ''
+    if (!name) continue
+
+    const type = ['start', 'visit', 'overnight', 'service', 'other'].includes(String(raw.type))
+      ? String(raw.type) as DailyStopType
+      : 'visit'
+
+    stops.push({
+      type,
+      name,
+      notes: typeof raw.notes === 'string' && raw.notes.trim() ? raw.notes.trim() : null,
+      latitude: typeof raw.latitude === 'number' ? raw.latitude : null,
+      longitude: typeof raw.longitude === 'number' ? raw.longitude : null,
+    })
+  }
+
+  return stops
 }
 
 export async function getStatsByStatus() {

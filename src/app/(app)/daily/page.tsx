@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createDailyRecord, type DailyRecordStatus, type DailyRecord } from '@/app/actions/daily-records'
-import { Loader2, CheckCircle2, AlertCircle, Navigation, MapPin, Home } from 'lucide-react'
+import { createDailyRecord, type DailyRecordStatus, type DailyRecord, type DailyStop } from '@/app/actions/daily-records'
+import { Loader2, CheckCircle2, AlertCircle, Navigation, MapPin, Home, Plus, Trash2 } from 'lucide-react'
 import { formatStoredLocation, getStoredLocation, positionToStoredLocation, saveStoredLocation, type StoredLocation } from '@/lib/client-location'
 import { ActionDialog } from '@/components/ui/action-dialog'
 import styles from './page.module.css'
@@ -10,6 +10,22 @@ import styles from './page.module.css'
 interface FieldErrors {
   accommodationCost?: string
   dailyExpenses?: string
+}
+
+type StopDraft = DailyStop & { key: string }
+
+const baseStops = (): StopDraft[] => [
+  { key: 'start', type: 'start', name: '', notes: '' },
+  { key: 'visit-1', type: 'visit', name: '', notes: '' },
+  { key: 'overnight', type: 'overnight', name: '', notes: '' },
+]
+
+const stopLabels: Record<DailyStop['type'], string> = {
+  start: 'Salida / despertar',
+  visit: 'Parada visitada',
+  overnight: 'Pernocta / dormir',
+  service: 'Servicio',
+  other: 'Otro',
 }
 
 function getCurrentPosition() {
@@ -38,6 +54,7 @@ export default function DailyPage() {
   const [locationName, setLocationName] = useState('')
   const [notes, setNotes] = useState('')
   const [visitedPlaces, setVisitedPlaces] = useState('')
+  const [stops, setStops] = useState<StopDraft[]>(baseStops)
   const [accommodationCost, setAccommodationCost] = useState('')
   const [dailyExpenses, setDailyExpenses] = useState('')
   const [dailyExpensesNotes, setDailyExpensesNotes] = useState('')
@@ -51,6 +68,22 @@ export default function DailyPage() {
   const [cachedLocation, setCachedLocation] = useState<StoredLocation | null>(null)
   const [editingRecord, setEditingRecord] = useState<{ id: string; notes: string } | null>(null)
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null)
+
+  const updateStop = (key: string, patch: Partial<DailyStop>) => {
+    setStops((current) => current.map((stop) => stop.key === key ? { ...stop, ...patch } : stop))
+  }
+
+  const addVisitStop = () => {
+    setStops((current) => [
+      ...current.slice(0, -1),
+      { key: `visit-${Date.now()}`, type: 'visit', name: '', notes: '' },
+      current[current.length - 1],
+    ])
+  }
+
+  const removeStop = (key: string) => {
+    setStops((current) => current.filter((stop) => stop.key !== key))
+  }
 
   const loadRecords = async () => {
     setRecordsLoading(true)
@@ -163,6 +196,13 @@ export default function DailyPage() {
       }
 
       const isoDate = new Date().toISOString().split('T')[0]
+      const normalizedStops = stops
+        .map(({ type, name, notes }) => ({ type, name: name.trim(), notes: notes?.trim() || null }))
+        .filter((stop) => stop.name)
+      const fallbackVisitedPlaces = visitedPlaces
+        .split(',')
+        .map((place) => place.trim())
+        .filter(Boolean)
       await createDailyRecord({
         date: isoDate,
         status,
@@ -173,10 +213,8 @@ export default function DailyPage() {
         accommodation_cost: accommodationCost ? parseFloat(accommodationCost) : null,
         daily_expenses: dailyExpenses ? parseFloat(dailyExpenses) : null,
         daily_expenses_notes: dailyExpensesNotes || null,
-        visited_places: visitedPlaces
-          .split(',')
-          .map((place) => place.trim())
-          .filter(Boolean),
+        visited_places: fallbackVisitedPlaces.length ? fallbackVisitedPlaces : normalizedStops.map((stop) => stop.name),
+        stops: normalizedStops,
         grey_water_emptied: greyWater,
         black_water_emptied: blackWater,
         fresh_water_filled: freshWater,
@@ -188,6 +226,7 @@ export default function DailyPage() {
       setLocationName('')
       setNotes('')
       setVisitedPlaces('')
+      setStops(baseStops())
       setAccommodationCost('')
       setDailyExpenses('')
       setDailyExpensesNotes('')
@@ -229,7 +268,14 @@ export default function DailyPage() {
   const filteredRecords = records.filter((record) => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return true
-    return [record.location_name, record.notes, record.daily_expenses_notes, ...(record.visited_places ?? []), ...(record.tags ?? [])]
+    return [
+      record.location_name,
+      record.notes,
+      record.daily_expenses_notes,
+      ...(record.visited_places ?? []),
+      ...(record.stops ?? []).flatMap((stop) => [stop.name, stop.notes]),
+      ...(record.tags ?? []),
+    ]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(query))
   })
@@ -372,16 +418,72 @@ export default function DailyPage() {
 
             <div className={styles.inputGroup}>
               <label className="text-headline">Detalles de la bitácora</label>
+              <div className={styles.stopsList}>
+                {stops.map((stop) => (
+                  <div key={stop.key} className={styles.stopCard}>
+                    <div className={styles.stopHeader}>
+                      <select
+                        className={styles.stopTypeSelect}
+                        value={stop.type}
+                        onChange={(event) => updateStop(stop.key, { type: event.target.value as DailyStop['type'] })}
+                        disabled={loading || stop.key === 'start' || stop.key === 'overnight'}
+                        aria-label="Tipo de parada"
+                      >
+                        {Object.entries(stopLabels).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                      {!['start', 'overnight'].includes(stop.key) && (
+                        <button
+                          type="button"
+                          className={styles.stopRemove}
+                          onClick={() => removeStop(stop.key)}
+                          disabled={loading}
+                          aria-label="Quitar parada"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      className={styles.bentoInput}
+                      placeholder={
+                        stop.type === 'start'
+                          ? 'Lugar A: dónde te despiertas o sales'
+                          : stop.type === 'overnight'
+                            ? 'Lugar C: dónde duermes'
+                            : 'Lugar B: visita, compra, mirador...'
+                      }
+                      value={stop.name}
+                      onChange={(event) => updateStop(stop.key, { name: event.target.value })}
+                      disabled={loading}
+                    />
+                    <input
+                      type="text"
+                      className={styles.bentoInput}
+                      placeholder="Nota opcional de esta parada"
+                      value={stop.notes ?? ''}
+                      onChange={(event) => updateStop(stop.key, { notes: event.target.value })}
+                      disabled={loading}
+                    />
+                  </div>
+                ))}
+              </div>
+              <button type="button" className={styles.addStopButton} onClick={addVisitStop} disabled={loading}>
+                <Plus size={16} />
+                Añadir otra parada
+              </button>
               <input
                 type="text"
                 className={styles.bentoInput}
-                placeholder="Lugares visitados: Faro de Fisterra, playa de Langosteira..."
+                placeholder="Extra opcional, separado por comas"
                 value={visitedPlaces}
                 onChange={(e) => setVisitedPlaces(e.target.value)}
                 disabled={loading}
               />
               <p className="text-subhead" style={{ color: 'var(--text-secondary)' }}>
-                Si dormiste en un área de autocaravanas, añádela aquí junto al resto de lugares visitados.
+                Usa salida, paradas visitadas y pernocta para reconstruir luego el viaje completo.
               </p>
               <div className={styles.templateRow}>
                 {availableTags.map((tag) => {
@@ -560,7 +662,17 @@ export default function DailyPage() {
                   <span className="text-subhead" style={{ color: 'var(--text-secondary)' }}>
                     {item.date}{item.location_name ? ` · ${item.location_name}` : ''}
                   </span>
-                  {item.visited_places && item.visited_places.length > 0 && (
+                  {item.stops && item.stops.length > 0 && (
+                    <div className={styles.stopsSummary}>
+                      {item.stops.map((stop, index) => (
+                        <span key={`${stop.type}-${stop.name}-${index}`}>
+                          {stopLabels[stop.type]}: {stop.name}
+                          {stop.notes ? ` · ${stop.notes}` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {(!item.stops || item.stops.length === 0) && item.visited_places && item.visited_places.length > 0 && (
                     <span className={styles.recordNote}>Visitado: {item.visited_places.join(', ')}</span>
                   )}
                   {item.notes && <span className={styles.recordNote}>{item.notes}</span>}

@@ -1,0 +1,277 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+.header {
+  padding-bottom: 4px;
+}
+
+.bentoSplit {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 16px;
+}
+
+.formSection,
+.listSection {
+  min-height: 520px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: white;
+  box-shadow: none;
+}
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.statBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #fffaf8;
+}
+
+.successBanner,
+.errorBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.successBanner {
+  background: rgba(34, 197, 94, 0.12);
+  color: #166534;
+}
+
+.errorBanner {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: 10px;
+}
+
+.checkRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--motor-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.checkRow input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand-orange);
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  z-index: 2;
+  color: #9ca3af;
+}
+
+.bentoInput {
+  width: 100%;
+  min-height: 50px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #dddddd;
+  background: white;
+  color: var(--motor-text);
+  font-size: 15px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.bentoInput.withIcon {
+  padding-left: 44px;
+}
+
+.bentoInput:focus {
+  border-color: var(--brand-orange);
+  box-shadow: 0 0 0 3px rgba(255, 170, 77, 0.12);
+}
+
+.bentoInputError {
+  border-color: #ef4444 !important;
+}
+
+.errorText {
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.submitButton {
+  margin-top: 6px;
+  min-height: 50px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: none;
+  background: var(--brand-orange);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 14px 28px rgba(255, 170, 77, 0.16);
+}
+
+.submitButton:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.listSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.recordList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recordItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #fff;
+}
+
+.recordIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff1f3;
+  color: var(--brand-orange);
+  flex-shrink: 0;
+}
+
+.recordDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.recordMain,
+.recordSub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.itemActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.itemActions button {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  background: white;
+  color: var(--motor-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #fafafa;
+  color: var(--motor-text-secondary);
+}
+
+@media (max-width: 980px) {
+  .bentoSplit {
+    grid-template-columns: 1fr;
+  }
+
+  .formSection,
+  .listSection {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .statsRow,
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .recordMain,
+  .recordSub,
+  .listHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

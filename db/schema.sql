@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.daily_logs (
     daily_expenses NUMERIC,
     daily_expenses_notes TEXT,
     visited_places TEXT[] DEFAULT '{}',
+    stops JSONB DEFAULT '[]'::jsonb,
     grey_water_emptied BOOLEAN DEFAULT FALSE,
     black_water_emptied BOOLEAN DEFAULT FALSE,
     fresh_water_filled BOOLEAN DEFAULT FALSE,
@@ -74,6 +75,24 @@ CREATE TABLE IF NOT EXISTS public.fuel_logs (
 );
 CREATE INDEX IF NOT EXISTS fuel_logs_date_idx ON public.fuel_logs (date DESC);
 
+-- GLP Records Table (gas vivienda: cocina/calefacción)
+CREATE TABLE IF NOT EXISTS public.lpg_logs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    trip_id UUID,
+    date DATE NOT NULL,
+    amount NUMERIC NOT NULL,
+    quantity NUMERIC NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'liters' CHECK (unit IN ('liters', 'kg')),
+    price_per_unit NUMERIC,
+    place_name TEXT,
+    usage_type TEXT NOT NULL DEFAULT 'mixed' CHECK (usage_type IN ('cooking', 'heating', 'mixed', 'other')),
+    notes TEXT,
+    source TEXT DEFAULT 'web' NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS lpg_logs_date_idx ON public.lpg_logs (date DESC, created_at DESC);
+
 -- Maintenance Reminders Table
 CREATE TABLE IF NOT EXISTS public.maintenance_reminders (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -117,12 +136,16 @@ ALTER TABLE public.odometer_logs
 ALTER TABLE public.fuel_logs
   ADD COLUMN IF NOT EXISTS trip_id UUID REFERENCES public.trips(id) ON DELETE SET NULL;
 
+ALTER TABLE public.lpg_logs
+  ADD COLUMN IF NOT EXISTS trip_id UUID REFERENCES public.trips(id) ON DELETE SET NULL;
+
 ALTER TABLE public.maintenance_logs
   ADD COLUMN IF NOT EXISTS trip_id UUID REFERENCES public.trips(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS daily_logs_trip_idx ON public.daily_logs (trip_id, date DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS odometer_logs_trip_idx ON public.odometer_logs (trip_id, date DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS fuel_logs_trip_idx ON public.fuel_logs (trip_id, date DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS lpg_logs_trip_idx ON public.lpg_logs (trip_id, date DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS maintenance_logs_trip_idx ON public.maintenance_logs (trip_id, date DESC, created_at DESC);
 
 DO $$
@@ -134,6 +157,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fuel_logs_trip_id_fkey') THEN
     ALTER TABLE public.fuel_logs
       ADD CONSTRAINT fuel_logs_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lpg_logs_trip_id_fkey') THEN
+    ALTER TABLE public.lpg_logs
+      ADD CONSTRAINT lpg_logs_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE SET NULL;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'maintenance_logs_trip_id_fkey') THEN
     ALTER TABLE public.maintenance_logs
@@ -217,6 +244,7 @@ ALTER TABLE public.daily_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.odometer_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maintenance_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fuel_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lpg_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maintenance_reminders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trips DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.auth_settings DISABLE ROW LEVEL SECURITY;
@@ -230,6 +258,7 @@ DROP POLICY IF EXISTS "Allow all operations for anon" ON public.daily_logs;
 DROP POLICY IF EXISTS "Allow all operations for anon" ON public.odometer_logs;
 DROP POLICY IF EXISTS "Allow all operations for anon" ON public.maintenance_logs;
 DROP POLICY IF EXISTS "Allow all operations for anon" ON public.fuel_logs;
+DROP POLICY IF EXISTS "Allow all operations for anon" ON public.lpg_logs;
 DROP POLICY IF EXISTS "Allow all operations for anon" ON public.maintenance_reminders;
 DROP POLICY IF EXISTS "Allow all operations for anon" ON public.trips;
 DROP POLICY IF EXISTS "Allow all operations for anon" ON public.auth_settings;
@@ -240,6 +269,7 @@ ALTER TABLE public.daily_logs
   ADD COLUMN IF NOT EXISTS daily_expenses NUMERIC,
   ADD COLUMN IF NOT EXISTS daily_expenses_notes TEXT,
   ADD COLUMN IF NOT EXISTS visited_places TEXT[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS stops JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS photo_urls TEXT[] DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'web' NOT NULL,
@@ -270,6 +300,15 @@ ALTER TABLE public.fuel_logs
   ADD COLUMN IF NOT EXISTS odometer_at INTEGER,
   ADD COLUMN IF NOT EXISTS station_name TEXT,
   ADD COLUMN IF NOT EXISTS full_tank BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'web' NOT NULL,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL;
+
+ALTER TABLE public.lpg_logs
+  ADD COLUMN IF NOT EXISTS trip_id UUID REFERENCES public.trips(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS price_per_unit NUMERIC,
+  ADD COLUMN IF NOT EXISTS place_name TEXT,
+  ADD COLUMN IF NOT EXISTS usage_type TEXT DEFAULT 'mixed' NOT NULL,
+  ADD COLUMN IF NOT EXISTS notes TEXT,
   ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'web' NOT NULL,
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL;
 
@@ -306,6 +345,7 @@ BEGIN
     'odometer_logs',
     'maintenance_logs',
     'fuel_logs',
+    'lpg_logs',
     'maintenance_reminders',
     'trips',
     'auth_settings',

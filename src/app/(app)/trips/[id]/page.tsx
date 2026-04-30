@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CalendarDays, Fuel, Navigation, Wrench } from 'lucide-react'
+import { CalendarDays, Flame, Fuel, Navigation, Wrench } from 'lucide-react'
 import { getTripDetail } from '@/app/actions/trips'
 import styles from './page.module.css'
 
@@ -13,6 +13,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   if (!trip) notFound()
 
   const fuel = trip.fuel_logs?.reduce((sum, record) => sum + record.amount, 0) ?? 0
+  const lpg = trip.lpg_logs?.reduce((sum, record) => sum + record.amount, 0) ?? 0
   const maintenance = trip.maintenance_logs?.reduce((sum, record) => sum + (record.cost ?? 0), 0) ?? 0
   const lodging = trip.daily_logs?.reduce(
     (sum, record) => sum + (record.accommodation_cost ?? 0) + (record.daily_expenses ?? 0),
@@ -28,6 +29,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       title: item.location_name || 'Registro diario',
       text: [
         item.notes || item.status,
+        item.stops?.length ? item.stops.map((stop) => `${stop.name}`).join(' → ') : null,
         item.visited_places?.length ? `Visitado: ${item.visited_places.join(', ')}` : null,
       ].filter(Boolean).join(' · '),
     })),
@@ -37,6 +39,13 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       icon: Fuel,
       title: `${item.amount.toFixed(2)} € combustible`,
       text: item.station_name || `${item.price_per_liter.toFixed(3)} €/L`,
+    })),
+    ...(trip.lpg_logs ?? []).map((item) => ({
+      id: `lpg-${item.id}`,
+      date: item.date,
+      icon: Flame,
+      title: `${item.amount.toFixed(2)} € GLP`,
+      text: `${item.quantity.toFixed(2)} ${item.unit === 'liters' ? 'L' : 'kg'}${item.place_name ? ` · ${item.place_name}` : ''}`,
     })),
     ...(trip.maintenance_logs ?? []).map((item) => ({
       id: `maintenance-${item.id}`,
@@ -58,7 +67,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
       <section className={styles.metrics}>
         <div><span>Kilómetros</span><strong>{km === null ? '—' : km.toLocaleString('es-ES')}</strong></div>
-        <div><span>Coste total</span><strong>{(fuel + maintenance + lodging).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong></div>
+        <div><span>Coste total</span><strong>{(fuel + lpg + maintenance + lodging).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong></div>
         <div><span>Registros</span><strong>{timeline.length}</strong></div>
       </section>
 

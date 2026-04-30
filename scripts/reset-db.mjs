@@ -8,6 +8,7 @@ const tables = [
   'odometer_logs',
   'maintenance_logs',
   'fuel_logs',
+  'lpg_logs',
   'maintenance_reminders',
   'trips',
   'favorite_places',

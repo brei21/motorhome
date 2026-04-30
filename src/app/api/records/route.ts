@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { deleteRecord, updateRecord } from '@/app/actions/records'
 
-type EditableTable = 'daily_logs' | 'fuel_logs' | 'maintenance_logs' | 'trips'
+type EditableTable = 'daily_logs' | 'fuel_logs' | 'lpg_logs' | 'maintenance_logs' | 'trips'
 
-const tables = new Set(['daily_logs', 'fuel_logs', 'maintenance_logs', 'trips'])
+const tables = new Set(['daily_logs', 'fuel_logs', 'lpg_logs', 'maintenance_logs', 'trips'])
 
 function parsePayload(payload: unknown) {
   const body = payload as { table?: string; id?: string; values?: Record<string, unknown> } | null

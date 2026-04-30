@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { query } from '@/lib/db'
-import type { DailyRecord, DailyRecordStatus } from '@/app/actions/daily-records'
+import type { DailyRecord, DailyRecordStatus, DailyStop } from '@/app/actions/daily-records'
+import type { LpgRecord } from '@/app/actions/lpg-records'
 import { writeAuditLog } from '@/app/actions/audit'
 
 export interface TripDailyRecord {
@@ -18,6 +19,7 @@ export interface TripDailyRecord {
   daily_expenses: number | null
   daily_expenses_notes: string | null
   visited_places: string[]
+  stops: DailyStop[]
   grey_water_emptied: boolean
   black_water_emptied: boolean
   fresh_water_filled: boolean
@@ -49,6 +51,8 @@ export interface TripMaintenanceRecord {
   created_at: string
 }
 
+export type TripLpgRecord = LpgRecord
+
 export interface Trip {
   id: string
   started_at: string
@@ -63,6 +67,7 @@ export interface Trip {
   created_at: string
   daily_logs?: TripDailyRecord[]
   fuel_logs?: TripFuelRecord[]
+  lpg_logs?: TripLpgRecord[]
   maintenance_logs?: TripMaintenanceRecord[]
 }
 
@@ -178,6 +183,7 @@ export async function listTrips(limit = 20) {
       accommodation_cost: row.accommodation_cost !== null ? Number(row.accommodation_cost) : null,
       daily_expenses: row.daily_expenses !== null ? Number(row.daily_expenses) : null,
       visited_places: row.visited_places ?? [],
+      stops: row.stops ?? [],
     })
     return acc
   }, {})
@@ -194,7 +200,7 @@ export async function getTripDetail(id: string) {
 
   if (!trip) return null
 
-  const [dailyRes, fuelRes, maintenanceRes] = await Promise.all([
+  const [dailyRes, fuelRes, lpgRes, maintenanceRes] = await Promise.all([
     query<DailyRecord>(
       `SELECT * FROM daily_logs WHERE trip_id = $1 ORDER BY date ASC, created_at ASC`,
       [id]
@@ -205,6 +211,13 @@ export async function getTripDetail(id: string) {
     ).catch((error) => {
       if ((error as { code?: string }).code !== '42703') throw error
       return { rows: [] as TripFuelRecord[] }
+    }),
+    query<TripLpgRecord>(
+      `SELECT * FROM lpg_logs WHERE trip_id = $1 ORDER BY date ASC, created_at ASC`,
+      [id]
+    ).catch((error) => {
+      if ((error as { code?: string }).code !== '42P01' && (error as { code?: string }).code !== '42703') throw error
+      return { rows: [] as TripLpgRecord[] }
     }),
     query<TripMaintenanceRecord>(
       `SELECT * FROM maintenance_logs WHERE trip_id = $1 ORDER BY date ASC, created_at ASC`,
@@ -224,6 +237,7 @@ export async function getTripDetail(id: string) {
       accommodation_cost: row.accommodation_cost !== null ? Number(row.accommodation_cost) : null,
       daily_expenses: row.daily_expenses !== null ? Number(row.daily_expenses) : null,
       visited_places: row.visited_places ?? [],
+      stops: row.stops ?? [],
     })),
     fuel_logs: fuelRes.rows.map((row) => ({
       ...row,
@@ -232,6 +246,14 @@ export async function getTripDetail(id: string) {
       amount: Number(row.amount),
       price_per_liter: Number(row.price_per_liter),
       odometer_at: row.odometer_at !== null ? Number(row.odometer_at) : null,
+    })),
+    lpg_logs: lpgRes.rows.map((row) => ({
+      ...row,
+      date: toIsoString(row.date),
+      created_at: toIsoString(row.created_at),
+      amount: Number(row.amount),
+      quantity: Number(row.quantity),
+      price_per_unit: row.price_per_unit !== null ? Number(row.price_per_unit) : null,
     })),
     maintenance_logs: maintenanceRes.rows.map((row) => ({
       ...row,

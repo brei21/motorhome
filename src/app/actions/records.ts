@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { query } from '@/lib/db'
 import { writeAuditLog } from '@/app/actions/audit'
 
-type EditableTable = 'daily_logs' | 'fuel_logs' | 'maintenance_logs' | 'trips'
+type EditableTable = 'daily_logs' | 'fuel_logs' | 'lpg_logs' | 'maintenance_logs' | 'trips'
 
 const editableColumns: Record<EditableTable, Set<string>> = {
   daily_logs: new Set([
@@ -16,6 +16,7 @@ const editableColumns: Record<EditableTable, Set<string>> = {
     'daily_expenses',
     'daily_expenses_notes',
     'visited_places',
+    'stops',
     'grey_water_emptied',
     'black_water_emptied',
     'fresh_water_filled',
@@ -23,6 +24,7 @@ const editableColumns: Record<EditableTable, Set<string>> = {
     'photo_urls',
   ]),
   fuel_logs: new Set(['date', 'amount', 'price_per_liter', 'odometer_at', 'station_name', 'full_tank', 'trip_id']),
+  lpg_logs: new Set(['date', 'amount', 'quantity', 'unit', 'price_per_unit', 'place_name', 'usage_type', 'notes', 'trip_id']),
   maintenance_logs: new Set(['date', 'type', 'description', 'cost', 'odometer_at', 'due_odometer', 'due_date', 'trip_id']),
   trips: new Set(['start_location', 'end_location', 'notes', 'start_odometer', 'end_odometer']),
 }
@@ -35,6 +37,7 @@ function revalidateCommon() {
   revalidatePath('/')
   revalidatePath('/daily')
   revalidatePath('/fuel')
+  revalidatePath('/lpg')
   revalidatePath('/maintenance')
   revalidatePath('/odometer')
   revalidatePath('/stats')
