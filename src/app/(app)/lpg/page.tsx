@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createLpgRecord, type LpgRecord, type LpgUnit, type LpgUsageType } from '@/app/actions/lpg-records'
-import { AlertCircle, CheckCircle2, Euro, Flame, Loader2, MapPin, Scale } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Euro, Flame, Loader2, MapPin } from 'lucide-react'
 import { ActionDialog } from '@/components/ui/action-dialog'
 import styles from './page.module.css'
 
 interface FieldErrors {
   amount?: string
-  quantity?: string
+  pricePerUnit?: string
 }
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
@@ -31,7 +31,7 @@ export default function LpgPage() {
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [recordDate, setRecordDate] = useState(todayIso)
   const [amount, setAmount] = useState('')
-  const [quantity, setQuantity] = useState('')
+  const [pricePerUnitInput, setPricePerUnitInput] = useState('')
   const [unit, setUnit] = useState<LpgUnit>('liters')
   const [placeName, setPlaceName] = useState('')
   const [usageType, setUsageType] = useState<LpgUsageType>('mixed')
@@ -61,18 +61,18 @@ export default function LpgPage() {
   const validateField = (field: keyof FieldErrors, value: string): string | undefined => {
     const numeric = parseFloat(value)
     if (!value || value.trim() === '') {
-      return field === 'amount' ? 'El importe es obligatorio' : 'La cantidad es obligatoria'
+      return field === 'amount' ? 'El importe es obligatorio' : 'El precio por unidad es obligatorio'
     }
     if (Number.isNaN(numeric) || numeric <= 0) return 'Introduce un valor mayor que 0'
     if (field === 'amount' && numeric > 500) return 'Importe demasiado alto, revisa el valor'
-    if (field === 'quantity' && numeric > 300) return 'Cantidad demasiado alta, revisa el valor'
+    if (field === 'pricePerUnit' && numeric > 20) return 'Precio por unidad demasiado alto, revisa el valor'
     return undefined
   }
 
   const hasError = (field: keyof FieldErrors) => touched[field] && errors[field]
 
-  const pricePerUnit = amount && quantity && parseFloat(quantity) > 0
-    ? parseFloat(amount) / parseFloat(quantity)
+  const estimatedQuantity = amount && pricePerUnitInput && parseFloat(pricePerUnitInput) > 0
+    ? parseFloat(amount) / parseFloat(pricePerUnitInput)
     : 0
 
   const totals = useMemo(() => {
@@ -91,10 +91,10 @@ export default function LpgPage() {
     setError(null)
 
     const amountError = validateField('amount', amount)
-    const quantityError = validateField('quantity', quantity)
-    if (amountError || quantityError) {
-      setErrors({ amount: amountError, quantity: quantityError })
-      setTouched({ amount: true, quantity: true })
+    const priceError = validateField('pricePerUnit', pricePerUnitInput)
+    if (amountError || priceError) {
+      setErrors({ amount: amountError, pricePerUnit: priceError })
+      setTouched({ amount: true, pricePerUnit: true })
       return
     }
 
@@ -104,16 +104,16 @@ export default function LpgPage() {
       await createLpgRecord({
         date: recordDate,
         amount: parseFloat(amount),
-        quantity: parseFloat(quantity),
+        quantity: estimatedQuantity,
         unit,
-        price_per_unit: pricePerUnit || null,
+        price_per_unit: parseFloat(pricePerUnitInput),
         place_name: placeName || null,
         usage_type: usageType,
         notes: notes || null,
       })
       setRecordDate(todayIso())
       setAmount('')
-      setQuantity('')
+      setPricePerUnitInput('')
       setUnit('liters')
       setPlaceName('')
       setUsageType('mixed')
@@ -185,8 +185,8 @@ export default function LpgPage() {
 
           <div className={styles.statsRow}>
             <div className={styles.statBox}>
-              <span className="text-subhead">Precio estimado</span>
-              <span className="text-title-2">{pricePerUnit ? pricePerUnit.toFixed(3) : '—'} <span className="text-body">€/{unit === 'liters' ? 'L' : 'kg'}</span></span>
+              <span className="text-subhead">Cantidad estimada</span>
+              <span className="text-title-2">{estimatedQuantity ? estimatedQuantity.toFixed(2) : '—'} <span className="text-body">{unit === 'liters' ? 'L' : 'kg'}</span></span>
             </div>
             <div className={styles.statBox}>
               <span className="text-subhead">Total GLP</span>
@@ -229,26 +229,26 @@ export default function LpgPage() {
               </div>
 
               <div className={styles.inputGroup}>
-                <label className="text-headline">Cantidad</label>
+                <label className="text-headline">Precio por {unit === 'liters' ? 'litro' : 'kg'}</label>
                 <div className={styles.inputWrapper}>
-                  <Scale className={styles.inputIcon} size={20} />
+                  <Euro className={styles.inputIcon} size={20} />
                   <input
                     type="number"
-                    step="0.01"
+                    step="0.001"
                     min="0.01"
-                    className={`${styles.bentoInput} ${styles.withIcon} ${hasError('quantity') ? styles.bentoInputError : ''}`}
-                    placeholder="0.00"
-                    value={quantity}
-                    onChange={(event) => setQuantity(event.target.value)}
+                    className={`${styles.bentoInput} ${styles.withIcon} ${hasError('pricePerUnit') ? styles.bentoInputError : ''}`}
+                    placeholder={unit === 'liters' ? '0.899 €/L' : '2.100 €/kg'}
+                    value={pricePerUnitInput}
+                    onChange={(event) => setPricePerUnitInput(event.target.value)}
                     onBlur={() => {
-                      setTouched((current) => ({ ...current, quantity: true }))
-                      setErrors((current) => ({ ...current, quantity: validateField('quantity', quantity) }))
+                      setTouched((current) => ({ ...current, pricePerUnit: true }))
+                      setErrors((current) => ({ ...current, pricePerUnit: validateField('pricePerUnit', pricePerUnitInput) }))
                     }}
                     disabled={loading}
                     required
                   />
                 </div>
-                {hasError('quantity') && <span className={styles.errorText}>{errors.quantity}</span>}
+                {hasError('pricePerUnit') && <span className={styles.errorText}>{errors.pricePerUnit}</span>}
               </div>
             </div>
 
@@ -310,6 +310,11 @@ export default function LpgPage() {
                   </div>
                   <div className={styles.recordSub}>
                     <span className="text-subhead">{record.quantity.toFixed(2)} {record.unit === 'liters' ? 'L' : 'kg'} · {usageLabels[record.usage_type]}</span>
+                    <span className="text-subhead">
+                      {record.price_per_unit ? `${record.price_per_unit.toFixed(3)} €/${record.unit === 'liters' ? 'L' : 'kg'}` : 'sin precio'}
+                    </span>
+                  </div>
+                  <div className={styles.recordSub}>
                     <span className="text-subhead">{record.place_name || 'Sin lugar'}</span>
                   </div>
                   {record.notes && <span className="text-subhead">{record.notes}</span>}
