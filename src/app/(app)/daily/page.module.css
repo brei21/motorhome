@@ -34,7 +34,7 @@
 
 .statusGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -70,7 +70,6 @@
 
 .statusActiveTravel,
 .statusActiveParking,
-.statusActiveArea,
 .statusActiveHome {
   background: #fff7f8;
   border-color: rgba(255, 170, 77, 0.4);
@@ -78,7 +77,6 @@
 
 .statusActiveTravel .statusIcon,
 .statusActiveParking .statusIcon,
-.statusActiveArea .statusIcon,
 .statusActiveHome .statusIcon {
   background: var(--brand-orange);
   color: var(--motor-text);

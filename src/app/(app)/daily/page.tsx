@@ -47,7 +47,6 @@ export default function DailyPage() {
   const [records, setRecords] = useState<DailyRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [photoUrl, setPhotoUrl] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [cachedLocation, setCachedLocation] = useState<StoredLocation | null>(null)
   const [editingRecord, setEditingRecord] = useState<{ id: string; notes: string } | null>(null)
@@ -182,7 +181,7 @@ export default function DailyPage() {
         black_water_emptied: blackWater,
         fresh_water_filled: freshWater,
         tags: selectedTags,
-        photo_urls: photoUrl ? [photoUrl] : [],
+        photo_urls: [],
       })
       
       setSuccess(true)
@@ -196,7 +195,6 @@ export default function DailyPage() {
       setBlackWater(false)
       setFreshWater(false)
       setSelectedTags([])
-      setPhotoUrl('')
       setTouched({})
       setErrors({})
       await loadRecords()
@@ -311,16 +309,6 @@ export default function DailyPage() {
                 <span className="text-headline">En Parking</span>
               </button>
 
-              <button
-                type="button"
-                className={`${styles.statusBtn} ${status === 'motorhome_area' ? styles.statusActiveArea : ''}`}
-                onClick={() => setStatus('motorhome_area')}
-                disabled={loading}
-              >
-                <div className={styles.statusIcon}><MapPin size={24} /></div>
-                <span className="text-headline">Área AC</span>
-              </button>
-
               <button 
                 type="button" 
                 className={`${styles.statusBtn} ${status === 'vacation_home' ? styles.statusActiveHome : ''}`}
@@ -330,21 +318,6 @@ export default function DailyPage() {
                 <div className={styles.statusIcon}><Home size={24} /></div>
                 <span className="text-headline">En Casa</span>
               </button>
-            </div>
-
-            <div className={styles.inputGroup}>
-              <label className="text-headline">Lugares visitados durante el día</label>
-              <input
-                type="text"
-                className={styles.bentoInput}
-                placeholder="Ej. Faro de Fisterra, playa de Langosteira, casco antiguo"
-                value={visitedPlaces}
-                onChange={(e) => setVisitedPlaces(e.target.value)}
-                disabled={loading}
-              />
-              <p className="text-subhead" style={{ color: 'var(--text-secondary)' }}>
-                Separa varios lugares con comas. La ubicación GPS queda como sitio de pernocta o posición guardada.
-              </p>
             </div>
 
             <div className={styles.inputGroup}>
@@ -398,7 +371,18 @@ export default function DailyPage() {
             </div>
 
             <div className={styles.inputGroup}>
-              <label className="text-headline">Etiquetas y foto</label>
+              <label className="text-headline">Detalles de la bitácora</label>
+              <input
+                type="text"
+                className={styles.bentoInput}
+                placeholder="Lugares visitados: Faro de Fisterra, playa de Langosteira..."
+                value={visitedPlaces}
+                onChange={(e) => setVisitedPlaces(e.target.value)}
+                disabled={loading}
+              />
+              <p className="text-subhead" style={{ color: 'var(--text-secondary)' }}>
+                Si dormiste en un área de autocaravanas, añádela aquí junto al resto de lugares visitados.
+              </p>
               <div className={styles.templateRow}>
                 {availableTags.map((tag) => {
                   const active = selectedTags.includes(tag)
@@ -419,14 +403,6 @@ export default function DailyPage() {
                   )
                 })}
               </div>
-              <input
-                type="url"
-                className={styles.bentoInput}
-                placeholder="URL de foto o factura (opcional)"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                disabled={loading}
-              />
             </div>
 
             <div className={styles.inputGroup}>
