@@ -245,6 +245,16 @@
   color: var(--motor-text);
 }
 
+.heroCaptionStatus {
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--brand-orange-soft);
+  color: var(--brand-orange);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .heroAside {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

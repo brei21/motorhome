@@ -118,6 +118,9 @@ const formatDate = (value: string | Date | null | undefined) => {
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+const coordinatePattern = /^-?\d{1,2}(?:\.\d+)?,\s*-?\d{1,3}(?:\.\d+)?$/
+const formatCoords = (lat: number | null, lng: number | null) =>
+  lat !== null && lng !== null ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : null
 
 function daysSince(logs: DailyLog[], predicate: (log: DailyLog) => boolean) {
   const idx = logs.findIndex(predicate)
@@ -171,8 +174,12 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
     data.currentOdometer > 0
 
   const location = useMemo(() => {
+    const coords = latestDaily ? formatCoords(latestDaily.latitude, latestDaily.longitude) : null
+    const rawName = latestDaily?.location_name?.trim() || ''
+    const municipality = rawName && !coordinatePattern.test(rawName) ? rawName : null
     return {
-      city: latestDaily?.location_name || FALLBACK_CITY,
+      city: municipality || FALLBACK_CITY,
+      coords,
       status: latestDaily ? statusText[latestDaily.status] : 'Sin registro',
       since: latestDaily ? formatDate(latestDaily.date) : '—',
     }
@@ -262,8 +269,11 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
           <div className={styles.heroFrame}>
             <Image src="/motorhome-brand.png" alt="Autocaravana junto a un faro" fill priority className={styles.heroImage} />
             <div className={styles.heroCaption}>
-              <span className={styles.heroCaptionLabel}>{hasAnyData ? location.city : 'Sin ubicacion'}</span>
-              <strong>{tripActive ? 'Ruta en curso' : hasAnyData ? 'Vehiculo estacionado' : 'Sin actividad registrada'}</strong>
+              <span className={styles.heroCaptionLabel}>{location.coords || 'Sin coordenadas'}</span>
+              <strong>{hasAnyData ? location.city : 'Sin ubicación'}</strong>
+              <span className={styles.heroCaptionStatus}>
+                {tripActive ? 'Ruta en curso' : hasAnyData ? location.status : 'Sin actividad registrada'}
+              </span>
             </div>
           </div>
 

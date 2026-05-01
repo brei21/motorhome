@@ -3,6 +3,7 @@ export interface StoredLocation {
   longitude: number
   accuracy: number | null
   capturedAt: string
+  locality?: string | null
 }
 
 const STORAGE_KEY = 'motorhome:last-location'
@@ -17,6 +18,11 @@ function isStoredLocation(value: unknown): value is StoredLocation {
 }
 
 export function formatStoredLocation(location: StoredLocation) {
+  if (location.locality) return location.locality
+  return formatCoordinates(location)
+}
+
+export function formatCoordinates(location: Pick<StoredLocation, 'latitude' | 'longitude'>) {
   return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
 }
 
@@ -51,5 +57,30 @@ export function positionToStoredLocation(position: GeolocationPosition): Omit<St
     latitude: position.coords.latitude,
     longitude: position.coords.longitude,
     accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+  }
+}
+
+export async function resolveMunicipality(location: Pick<StoredLocation, 'latitude' | 'longitude'>) {
+  const params = new URLSearchParams({
+    latitude: String(location.latitude),
+    longitude: String(location.longitude),
+    localityLanguage: 'es',
+  })
+
+  try {
+    const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?${params.toString()}`, {
+      signal: AbortSignal.timeout(4500),
+    })
+    if (!response.ok) return null
+
+    const data = await response.json() as {
+      city?: string
+      locality?: string
+      principalSubdivision?: string
+      countryName?: string
+    }
+    return data.city || data.locality || data.principalSubdivision || data.countryName || null
+  } catch {
+    return null
   }
 }

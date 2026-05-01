@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createDailyRecord, type DailyRecordStatus, type DailyRecord, type DailyStop } from '@/app/actions/daily-records'
 import { Loader2, CheckCircle2, AlertCircle, Navigation, MapPin, Home, Plus, Trash2 } from 'lucide-react'
-import { formatStoredLocation, getStoredLocation, positionToStoredLocation, saveStoredLocation, type StoredLocation } from '@/lib/client-location'
+import { formatCoordinates, formatStoredLocation, getStoredLocation, positionToStoredLocation, resolveMunicipality, saveStoredLocation, type StoredLocation } from '@/lib/client-location'
 import { ActionDialog } from '@/components/ui/action-dialog'
 import styles from './page.module.css'
 
@@ -161,16 +161,18 @@ export default function DailyPage() {
           const position = await getCurrentPosition()
           const stored = positionToStoredLocation(position)
           const capturedAt = new Date().toISOString()
-          saveStoredLocation(stored)
-          setCachedLocation({ ...stored, capturedAt })
+          const locality = await resolveMunicipality(stored)
+          const storedWithLocality = { ...stored, locality }
+          saveStoredLocation(storedWithLocality)
+          setCachedLocation({ ...storedWithLocality, capturedAt })
           latitude = stored.latitude
           longitude = stored.longitude
 
           if (!resolvedLocationName) {
-            resolvedLocationName = formatStoredLocation({ ...stored, capturedAt })
+            resolvedLocationName = locality || formatCoordinates(stored)
           }
 
-          setGpsMessage('Ubicacion GPS guardada en la bitacora del viaje.')
+          setGpsMessage(locality ? `Ubicacion GPS guardada: ${locality}.` : 'Ubicacion GPS guardada en la bitacora del viaje.')
         } catch {
           const stored = getStoredLocation()
 
