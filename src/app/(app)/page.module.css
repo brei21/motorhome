@@ -197,7 +197,9 @@
 
 .heroFrame {
   position: relative;
-  height: clamp(320px, 31vw, 460px);
+  width: 100%;
+  aspect-ratio: 8 / 3;
+  height: auto;
   border-radius: 24px;
   overflow: hidden;
   border: 1px solid rgba(17, 24, 39, 0.08);
@@ -205,9 +207,8 @@
 }
 
 .heroImage {
-  object-fit: contain;
-  object-position: 46% 50%;
-  padding: 18px 7%;
+  object-fit: cover;
+  object-position: center center;
 }
 
 .heroCaption {
@@ -592,7 +593,7 @@
   }
 
   .heroFrame {
-    height: 280px;
+    aspect-ratio: 4 / 3;
   }
 
   .metricValue {
