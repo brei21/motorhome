@@ -213,16 +213,20 @@
 
 .heroCaption {
   position: absolute;
+  top: 18px;
   left: 18px;
-  right: 18px;
-  bottom: 18px;
+  width: min(50%, 360px);
+  min-height: 122px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: #ffffff;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 18px 50px rgba(17, 24, 39, 0.08);
+  backdrop-filter: blur(14px);
 }
 
 .heroCaptionLabel {
@@ -235,8 +239,9 @@
 
 .heroCaption strong {
   font-family: var(--font-sans);
-  font-size: 18px;
+  font-size: clamp(18px, 1.8vw, 26px);
   font-weight: 700;
+  line-height: 1.05;
   color: var(--motor-text);
 }
 
@@ -594,6 +599,15 @@
 
   .heroFrame {
     aspect-ratio: 4 / 3;
+  }
+
+  .heroCaption {
+    top: 14px;
+    left: 14px;
+    width: min(68%, 280px);
+    min-height: 104px;
+    padding: 14px;
+    border-radius: 18px;
   }
 
   .metricValue {
