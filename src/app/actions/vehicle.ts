@@ -82,6 +82,7 @@ export async function saveVehicleProfile(data: Partial<Omit<VehicleProfile, 'id'
     ]
   )
   revalidatePath('/settings')
+  revalidatePath('/vehicle')
   revalidatePath('/')
   await writeAuditLog({ action: 'vehicle_profile.saved', entity: 'vehicle_profile', entity_id: '1' })
   return res.rows[0]
@@ -107,6 +108,7 @@ export async function createVehicleDocument(data: Omit<VehicleDocument, 'id' | '
     [data.title, data.type, data.document_url ?? null, data.expires_at ?? null, data.notes ?? null]
   )
   revalidatePath('/settings')
+  revalidatePath('/vehicle')
   await writeAuditLog({ action: 'vehicle_document.created', entity: 'vehicle_documents', entity_id: res.rows[0]?.id })
   return res.rows[0]
 }

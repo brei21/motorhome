@@ -11,6 +11,7 @@ import styles from './topnav.module.css'
 const navItems = [
   { href: '/', label: 'Inicio' },
   { href: '/current-trip', label: 'Viaje actual' },
+  { href: '/vehicle', label: 'Vehículo' },
   { href: '/daily', label: 'Diario' },
   { href: '/odometer', label: 'Ruta' },
   { href: '/maintenance', label: 'Taller' },
