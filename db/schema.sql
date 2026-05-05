@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS public.auth_login_attempts (
 CREATE TABLE IF NOT EXISTS public.favorite_places (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('camping', 'parking', 'viewpoint', 'workshop', 'fuel', 'other')),
+    type TEXT NOT NULL CHECK (type IN ('camping', 'parking', 'motorhome_area', 'viewpoint', 'workshop', 'fuel', 'lpg', 'water', 'restaurant', 'supermarket', 'other')),
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     notes TEXT,
@@ -195,6 +195,16 @@ CREATE TABLE IF NOT EXISTS public.favorite_places (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS favorite_places_type_idx ON public.favorite_places (type, created_at DESC);
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'favorite_places_type_check') THEN
+    ALTER TABLE public.favorite_places DROP CONSTRAINT favorite_places_type_check;
+  END IF;
+  ALTER TABLE public.favorite_places
+    ADD CONSTRAINT favorite_places_type_check
+    CHECK (type IN ('camping', 'parking', 'motorhome_area', 'viewpoint', 'workshop', 'fuel', 'lpg', 'water', 'restaurant', 'supermarket', 'other'));
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.vehicle_profile (
     id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),

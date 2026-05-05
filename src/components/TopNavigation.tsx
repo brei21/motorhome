@@ -10,8 +10,11 @@ import styles from './topnav.module.css'
 
 const navItems = [
   { href: '/', label: 'Inicio' },
+  { href: '/onboarding', label: 'Primeros pasos' },
   { href: '/current-trip', label: 'Viaje actual' },
   { href: '/vehicle', label: 'Vehículo' },
+  { href: '/search', label: 'Buscar' },
+  { href: '/favorites', label: 'Favoritos' },
   { href: '/daily', label: 'Diario' },
   { href: '/odometer', label: 'Ruta' },
   { href: '/maintenance', label: 'Taller' },

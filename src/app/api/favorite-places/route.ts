@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createFavoritePlace, listFavoritePlaces, type FavoritePlaceType } from '@/app/actions/favorite-places'
+import { createFavoritePlace, deleteFavoritePlace, listFavoritePlaces, type FavoritePlaceType } from '@/app/actions/favorite-places'
 
 export async function GET() {
   const places = await listFavoritePlaces()
@@ -25,4 +25,16 @@ export async function POST(request: Request) {
     notes: payload.notes ?? null,
   })
   return NextResponse.json(place)
+}
+
+export async function DELETE(request: Request) {
+  const payload = await request.json()
+  const id = String(payload.id || '').trim()
+
+  if (!id) {
+    return NextResponse.json({ success: false, error: 'ID requerido.' }, { status: 400 })
+  }
+
+  await deleteFavoritePlace(id)
+  return NextResponse.json({ success: true })
 }

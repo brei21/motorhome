@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { query } from '@/lib/db'
 import { writeAuditLog } from '@/app/actions/audit'
 
-export type FavoritePlaceType = 'camping' | 'parking' | 'viewpoint' | 'workshop' | 'fuel' | 'other'
+export type FavoritePlaceType = 'camping' | 'parking' | 'motorhome_area' | 'viewpoint' | 'workshop' | 'fuel' | 'lpg' | 'water' | 'restaurant' | 'supermarket' | 'other'
 
 export interface FavoritePlace {
   id: string
@@ -48,4 +48,12 @@ export async function listFavoritePlaces(limit = 50) {
     [limit]
   )
   return res.rows
+}
+
+export async function deleteFavoritePlace(id: string) {
+  await query(`DELETE FROM favorite_places WHERE id = $1`, [id])
+  revalidatePath('/favorites')
+  revalidatePath('/odometer')
+  await writeAuditLog({ action: 'favorite_place.deleted', entity: 'favorite_places', entity_id: id })
+  return { success: true }
 }

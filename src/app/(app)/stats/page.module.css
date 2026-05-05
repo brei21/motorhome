@@ -323,6 +323,48 @@
   color: var(--motor-text-secondary);
 }
 
+.periodTable {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.periodHead,
+.periodRow {
+  display: grid;
+  grid-template-columns: 1.1fr 0.7fr repeat(5, minmax(96px, 1fr));
+  gap: 10px;
+  align-items: center;
+  min-width: 760px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.periodHead {
+  color: var(--motor-text-secondary);
+  font-family: var(--font-space-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.periodRow {
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #fafafa;
+}
+
+.periodRow span {
+  color: var(--motor-text-secondary);
+}
+
+.periodEmpty {
+  padding: 22px;
+  border-radius: 18px;
+  background: #fafafa;
+  color: var(--motor-text-secondary);
+}
+
 @media (max-width: 900px) {
   .heroCard {
     grid-template-columns: 1fr;

@@ -2,23 +2,27 @@ import { getStatsByStatus, getTotalAccommodationCost } from '@/app/actions/daily
 import { getTotalKilometers } from '@/app/actions/odometer-records'
 import { getTotalMaintenanceCost } from '@/app/actions/maintenance-records'
 import { getTotalFuelCost } from '@/app/actions/fuel-records'
-import { Activity, MapPin, Wrench, Fuel, BarChart3, Navigation, Home } from 'lucide-react'
+import { getTotalLpgCost } from '@/app/actions/lpg-records'
+import { query } from '@/lib/db'
+import { Activity, MapPin, Wrench, Fuel, BarChart3, Navigation, Home, Flame } from 'lucide-react'
 import Link from 'next/link'
 import styles from './page.module.css'
 
 export const revalidate = 0 // Disable cache for this page so stats are always fresh
 
 export default async function StatsPage() {
-  const [dailyStats, totalKm, totalMaintenance, totalFuel, totalDaily] = await Promise.all([
+  const [dailyStats, totalKm, totalMaintenance, totalFuel, totalLpg, totalDaily, periodRows] = await Promise.all([
     getStatsByStatus(),
     getTotalKilometers(),
     getTotalMaintenanceCost(),
     getTotalFuelCost(),
+    getTotalLpgCost(),
     getTotalAccommodationCost(),
+    getPeriodSummary(),
   ])
 
   const totalDays = dailyStats.travel + dailyStats.parking + dailyStats.motorhome_area + dailyStats.vacation_home
-  const hasData = totalDays > 0 || totalKm > 0 || totalMaintenance > 0 || totalFuel > 0 || totalDaily > 0
+  const hasData = totalDays > 0 || totalKm > 0 || totalMaintenance > 0 || totalFuel > 0 || totalLpg > 0 || totalDaily > 0
   const formatNumber = (n: number) => new Intl.NumberFormat('es-ES').format(n)
   const formatMoney = (n: number) =>
     `${new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} €`
@@ -63,7 +67,7 @@ export default async function StatsPage() {
           </div>
           <div className={styles.summaryPill}>
             <span className={styles.summaryLabel}>Gasto</span>
-            <strong>{formatMoney(totalFuel + totalMaintenance + totalDaily)}</strong>
+            <strong>{formatMoney(totalFuel + totalLpg + totalMaintenance + totalDaily)}</strong>
           </div>
         </div>
       </section>
@@ -146,6 +150,14 @@ export default async function StatsPage() {
               </span>
               <span className={styles.statValue}>{formatMoney(totalFuel)}</span>
             </div>
+            <div className={styles.divider} />
+            <div className={styles.statRow}>
+              <span className="text-body">
+                <Flame size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: 'text-bottom' }} />
+                GLP
+              </span>
+              <span className={styles.statValue}>{formatMoney(totalLpg)}</span>
+            </div>
           </div>
         </section>
 
@@ -202,7 +214,88 @@ export default async function StatsPage() {
             </div>
           </div>
         </section>
+
+        <section className={`${styles.card} ${styles.cardWide} animate-slide-up`} style={{ animationDelay: '0.4s' }}>
+          <div className={styles.cardHeader}>
+            <div className={`${styles.iconWrapper} ${styles.orange}`}>
+              <BarChart3 size={24} color="white" />
+            </div>
+            <div>
+              <h2 className={styles.cardTitle}>Resumen mensual y anual</h2>
+              <p className={styles.cardSubtitle}>Últimos periodos con actividad real</p>
+            </div>
+          </div>
+
+          {periodRows.length === 0 ? (
+            <div className={styles.periodEmpty}>Cuando haya datos, aquí verás gastos y días agrupados por mes.</div>
+          ) : (
+            <div className={styles.periodTable}>
+              <div className={styles.periodHead}>
+                <span>Periodo</span>
+                <span>Días</span>
+                <span>Gasolina</span>
+                <span>GLP</span>
+                <span>Taller</span>
+                <span>Diario</span>
+                <span>Total</span>
+              </div>
+              {periodRows.map((row) => {
+                const total = row.fuel + row.lpg + row.maintenance + row.daily
+                return (
+                  <div key={row.period} className={styles.periodRow}>
+                    <strong>{row.period}</strong>
+                    <span>{formatNumber(row.days)}</span>
+                    <span>{formatMoney(row.fuel)}</span>
+                    <span>{formatMoney(row.lpg)}</span>
+                    <span>{formatMoney(row.maintenance)}</span>
+                    <span>{formatMoney(row.daily)}</span>
+                    <span>{formatMoney(total)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   )
+}
+
+async function getPeriodSummary() {
+  const res = await query<{
+    period: string
+    days: string
+    fuel: string | null
+    lpg: string | null
+    maintenance: string | null
+    daily: string | null
+  }>(
+    `
+      WITH periods AS (
+        SELECT date_trunc('month', date)::date AS month FROM daily_logs
+        UNION SELECT date_trunc('month', date)::date FROM fuel_logs
+        UNION SELECT date_trunc('month', date)::date FROM lpg_logs
+        UNION SELECT date_trunc('month', date)::date FROM maintenance_logs
+      )
+      SELECT
+        to_char(periods.month, 'YYYY-MM') AS period,
+        COALESCE((SELECT COUNT(*)::int FROM daily_logs d WHERE date_trunc('month', d.date)::date = periods.month), 0)::text AS days,
+        COALESCE((SELECT SUM(amount) FROM fuel_logs f WHERE date_trunc('month', f.date)::date = periods.month), 0)::text AS fuel,
+        COALESCE((SELECT SUM(amount) FROM lpg_logs l WHERE date_trunc('month', l.date)::date = periods.month), 0)::text AS lpg,
+        COALESCE((SELECT SUM(cost) FROM maintenance_logs m WHERE date_trunc('month', m.date)::date = periods.month), 0)::text AS maintenance,
+        COALESCE((SELECT SUM(COALESCE(accommodation_cost, 0) + COALESCE(daily_expenses, 0)) FROM daily_logs d WHERE date_trunc('month', d.date)::date = periods.month), 0)::text AS daily
+      FROM periods
+      ORDER BY periods.month DESC
+      LIMIT 12
+    `
+  )
+
+  return res.rows.map((row) => ({
+    period: row.period,
+    days: Number(row.days) || 0,
+    fuel: row.fuel ? Number(row.fuel) : 0,
+    lpg: row.lpg ? Number(row.lpg) : 0,
+    maintenance: row.maintenance ? Number(row.maintenance) : 0,
+    daily: row.daily ? Number(row.daily) : 0,
+  }))
 }

@@ -308,8 +308,8 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
 
           <div className={styles.heroControlPanel}>
             <div className={styles.heroActions}>
-              <Link href="/daily" className={styles.primaryCta}>
-                Nuevo dia
+              <Link href={hasAnyData ? '/daily' : '/onboarding'} className={styles.primaryCta}>
+                {hasAnyData ? 'Nuevo dia' : 'Primeros pasos'}
               </Link>
               <Link href="/odometer" className={styles.secondaryCta}>
                 Ruta y odometro
