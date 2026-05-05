@@ -85,6 +85,24 @@
   gap: 4px;
 }
 
+.mapPointGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mapPointGrid span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 14px;
+  background: #fafafa;
+  color: var(--motor-text-secondary);
+}
+
 .mapBox span,
 .timelineItem span {
   color: var(--motor-text-secondary);
@@ -99,6 +117,42 @@
 
 .timeline h2 {
   font-size: 22px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionHeader > span,
+.dayHeader span {
+  color: var(--motor-text-secondary);
+  font-family: var(--font-space-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dayGroup {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 246, 236, 0.72), rgba(255, 255, 255, 0.92));
+}
+
+.dayHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 8px;
+}
+
+.dayHeader svg {
+  color: var(--brand-orange);
 }
 
 .timelineItem,
@@ -122,5 +176,10 @@
 @media (max-width: 720px) {
   .metrics {
     grid-template-columns: 1fr;
+  }
+
+  .sectionHeader {
+    align-items: start;
+    flex-direction: column;
   }
 }
