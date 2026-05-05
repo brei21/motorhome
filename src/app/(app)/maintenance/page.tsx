@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { createMaintenanceRecord, MaintenanceType } from '@/app/actions/maintenance-records'
 import { ArrowUpCircle, CheckCircle2, Loader2, PenTool, ShieldCheck, Wrench, Gauge, Euro } from 'lucide-react'
 import { ActionDialog } from '@/components/ui/action-dialog'
+import { RecordEditDialog, type RecordEditField } from '@/components/ui/record-edit-dialog'
 import styles from './page.module.css'
 
 interface MaintenanceLog {
@@ -38,7 +39,16 @@ export default function MaintenancePage() {
   const [records, setRecords] = useState<MaintenanceLog[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editingMaintenance, setEditingMaintenance] = useState<{ id: string; description: string } | null>(null)
+  const [editingMaintenance, setEditingMaintenance] = useState<{
+    id: string
+    date: string
+    type: MaintenanceType
+    description: string
+    cost: string
+    odometer_at: string
+    due_odometer: string
+    due_date: string
+  } | null>(null)
   const [deletingMaintenanceId, setDeletingMaintenanceId] = useState<string | null>(null)
 
   const loadRecords = useCallback(async () => {
@@ -100,12 +110,34 @@ export default function MaintenancePage() {
     repair: <Wrench size={16} />,
   }
 
-  async function updateMaintenanceDescription() {
+  const maintenanceEditFields: RecordEditField[] = [
+    { name: 'date', label: 'Fecha', type: 'date' },
+    { name: 'type', label: 'Tipo', type: 'select', options: Object.entries(typeTitle).map(([value, label]) => ({ value, label })) },
+    { name: 'cost', label: 'Coste', type: 'number', step: '0.01', min: '0', placeholder: '120.00' },
+    { name: 'odometer_at', label: 'Odómetro', type: 'number', min: '0', placeholder: '15400' },
+    { name: 'description', label: 'Descripción', type: 'textarea', placeholder: 'Cambio de aceite, revisión, avería...', fullWidth: true },
+    { name: 'due_odometer', label: 'Próximo aviso por km', type: 'number', min: '0', placeholder: '30000' },
+    { name: 'due_date', label: 'Próximo aviso por fecha', type: 'date' },
+  ]
+
+  async function updateMaintenanceRecord() {
     if (!editingMaintenance?.description.trim()) return
     const response = await fetch('/api/records', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'maintenance_logs', id: editingMaintenance.id, values: { description: editingMaintenance.description } }),
+      body: JSON.stringify({
+        table: 'maintenance_logs',
+        id: editingMaintenance.id,
+        values: {
+          date: editingMaintenance.date,
+          type: editingMaintenance.type,
+          description: editingMaintenance.description,
+          cost: editingMaintenance.cost ? parseFloat(editingMaintenance.cost) : null,
+          odometer_at: editingMaintenance.odometer_at ? parseInt(editingMaintenance.odometer_at, 10) : null,
+          due_odometer: editingMaintenance.due_odometer ? parseInt(editingMaintenance.due_odometer, 10) : null,
+          due_date: editingMaintenance.due_date || null,
+        },
+      }),
     })
     if (!response.ok) {
       setError('No se pudo actualizar el registro de taller. Revisa la conexión e inténtalo de nuevo.')
@@ -299,7 +331,21 @@ export default function MaintenancePage() {
                       </span>
                     )}
                     <div className={styles.itemActions}>
-                      <button type="button" onClick={() => setEditingMaintenance({ id: record.id, description: record.description })}>Editar</button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingMaintenance({
+                          id: record.id,
+                          date: record.date.slice(0, 10),
+                          type: record.type,
+                          description: record.description,
+                          cost: record.cost ? String(record.cost) : '',
+                          odometer_at: record.odometer_at ? String(record.odometer_at) : '',
+                          due_odometer: record.due_odometer ? String(record.due_odometer) : '',
+                          due_date: record.due_date ? record.due_date.slice(0, 10) : '',
+                        })}
+                      >
+                        Editar
+                      </button>
                       <button type="button" onClick={() => setDeletingMaintenanceId(record.id)}>Borrar</button>
                     </div>
                   </div>
@@ -309,17 +355,15 @@ export default function MaintenancePage() {
           </div>
         </section>
       </div>
-      <ActionDialog
+      <RecordEditDialog
         open={Boolean(editingMaintenance)}
         title="Editar registro de taller"
-        description="Actualiza la descripción del registro sin cambiar costes, fecha ni odómetro."
-        inputLabel="Descripción"
-        inputValue={editingMaintenance?.description ?? ''}
-        inputPlaceholder="Describe la tarea"
-        confirmLabel="Guardar cambios"
-        onInputChange={(value) => setEditingMaintenance((current) => current ? { ...current, description: value } : current)}
+        description="Corrige tipo, fecha, coste, odómetro, avisos o descripción."
+        fields={maintenanceEditFields}
+        values={editingMaintenance ?? {}}
+        onChange={(name, value) => setEditingMaintenance((current) => current ? { ...current, [name]: value } : current)}
         onCancel={() => setEditingMaintenance(null)}
-        onConfirm={() => void updateMaintenanceDescription()}
+        onConfirm={() => void updateMaintenanceRecord()}
       />
       <ActionDialog
         open={Boolean(deletingMaintenanceId)}

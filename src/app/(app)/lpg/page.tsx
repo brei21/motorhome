@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createLpgRecord, type LpgRecord, type LpgUnit, type LpgUsageType } from '@/app/actions/lpg-records'
 import { AlertCircle, CheckCircle2, Euro, Flame, Loader2, MapPin } from 'lucide-react'
 import { ActionDialog } from '@/components/ui/action-dialog'
+import { RecordEditDialog, type RecordEditField } from '@/components/ui/record-edit-dialog'
 import styles from './page.module.css'
 
 interface FieldErrors {
@@ -38,7 +39,17 @@ export default function LpgPage() {
   const [notes, setNotes] = useState('')
   const [records, setRecords] = useState<LpgRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
-  const [editingLpg, setEditingLpg] = useState<{ id: string; place: string } | null>(null)
+  const [editingLpg, setEditingLpg] = useState<{
+    id: string
+    date: string
+    amount: string
+    quantity: string
+    unit: LpgUnit
+    price_per_unit: string
+    place_name: string
+    usage_type: LpgUsageType
+    notes: string
+  } | null>(null)
   const [deletingLpgId, setDeletingLpgId] = useState<string | null>(null)
 
   const loadRecords = async () => {
@@ -131,12 +142,36 @@ export default function LpgPage() {
     }
   }
 
-  async function updateLpgPlace() {
+  const lpgEditFields: RecordEditField[] = [
+    { name: 'date', label: 'Fecha', type: 'date' },
+    { name: 'amount', label: 'Importe', type: 'number', step: '0.01', min: '0.01', placeholder: '23.96' },
+    { name: 'quantity', label: 'Cantidad', type: 'number', step: '0.01', min: '0.01', placeholder: '26.65' },
+    { name: 'price_per_unit', label: '€/litro o €/kg', type: 'number', step: '0.001', min: '0.001', placeholder: '0.899' },
+    { name: 'unit', label: 'Unidad', type: 'select', options: [{ value: 'liters', label: 'Litros' }, { value: 'kg', label: 'Kg' }] },
+    { name: 'usage_type', label: 'Uso', type: 'select', options: Object.entries(usageLabels).map(([value, label]) => ({ value, label })) },
+    { name: 'place_name', label: 'Lugar', placeholder: 'Repsol Girona', fullWidth: true },
+    { name: 'notes', label: 'Notas', type: 'textarea', placeholder: 'Calefacción, cocina, bombona...', fullWidth: true },
+  ]
+
+  async function updateLpgRecord() {
     if (!editingLpg) return
     const response = await fetch('/api/records', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'lpg_logs', id: editingLpg.id, values: { place_name: editingLpg.place } }),
+      body: JSON.stringify({
+        table: 'lpg_logs',
+        id: editingLpg.id,
+        values: {
+          date: editingLpg.date,
+          amount: parseFloat(editingLpg.amount),
+          quantity: parseFloat(editingLpg.quantity),
+          unit: editingLpg.unit,
+          price_per_unit: editingLpg.price_per_unit ? parseFloat(editingLpg.price_per_unit) : null,
+          place_name: editingLpg.place_name || null,
+          usage_type: editingLpg.usage_type,
+          notes: editingLpg.notes || null,
+        },
+      }),
     })
     if (!response.ok) {
       setError('No se pudo actualizar el registro GLP. Revisa la conexión e inténtalo de nuevo.')
@@ -319,7 +354,22 @@ export default function LpgPage() {
                   </div>
                   {record.notes && <span className="text-subhead">{record.notes}</span>}
                   <div className={styles.itemActions}>
-                    <button type="button" onClick={() => setEditingLpg({ id: record.id, place: record.place_name ?? '' })}>Editar lugar</button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingLpg({
+                        id: record.id,
+                        date: record.date.slice(0, 10),
+                        amount: String(record.amount),
+                        quantity: String(record.quantity),
+                        unit: record.unit,
+                        price_per_unit: record.price_per_unit ? String(record.price_per_unit) : '',
+                        place_name: record.place_name ?? '',
+                        usage_type: record.usage_type,
+                        notes: record.notes ?? '',
+                      })}
+                    >
+                      Editar
+                    </button>
                     <button type="button" onClick={() => setDeletingLpgId(record.id)}>Borrar</button>
                   </div>
                 </div>
@@ -329,17 +379,15 @@ export default function LpgPage() {
         </section>
       </div>
 
-      <ActionDialog
+      <RecordEditDialog
         open={Boolean(editingLpg)}
-        title="Editar lugar GLP"
-        description="Actualiza el lugar del registro sin modificar importe ni cantidad."
-        inputLabel="Lugar"
-        inputValue={editingLpg?.place ?? ''}
-        inputPlaceholder="Ej. Repsol Girona"
-        confirmLabel="Guardar cambios"
-        onInputChange={(value) => setEditingLpg((current) => current ? { ...current, place: value } : current)}
+        title="Editar GLP"
+        description="Corrige fecha, importe, cantidad, precio, uso, lugar o notas del registro."
+        fields={lpgEditFields}
+        values={editingLpg ?? {}}
+        onChange={(name, value) => setEditingLpg((current) => current ? { ...current, [name]: value } : current)}
         onCancel={() => setEditingLpg(null)}
-        onConfirm={() => void updateLpgPlace()}
+        onConfirm={() => void updateLpgRecord()}
       />
       <ActionDialog
         open={Boolean(deletingLpgId)}

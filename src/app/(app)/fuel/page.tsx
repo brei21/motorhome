@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createFuelRecord } from '@/app/actions/fuel-records'
 import { AlertCircle, Beaker, CheckCircle2, Euro, Loader2, Zap } from 'lucide-react'
 import { ActionDialog } from '@/components/ui/action-dialog'
+import { RecordEditDialog, type RecordEditField } from '@/components/ui/record-edit-dialog'
 import styles from './page.module.css'
 
 interface FieldErrors {
@@ -43,7 +44,15 @@ export default function FuelPage() {
   const [fullTank, setFullTank] = useState(true)
   const [records, setRecords] = useState<FuelLog[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
-  const [editingFuel, setEditingFuel] = useState<{ id: string; station: string } | null>(null)
+  const [editingFuel, setEditingFuel] = useState<{
+    id: string
+    date: string
+    amount: string
+    price_per_liter: string
+    odometer_at: string
+    station_name: string
+    full_tank: boolean
+  } | null>(null)
   const [deletingFuelId, setDeletingFuelId] = useState<string | null>(null)
 
   const loadRecords = async () => {
@@ -150,12 +159,32 @@ export default function FuelPage() {
     return km > 0 ? (latestLiters / km) * 100 : null
   }, [records])
 
-  async function updateFuelStation() {
+  const fuelEditFields: RecordEditField[] = [
+    { name: 'date', label: 'Fecha', type: 'date' },
+    { name: 'amount', label: 'Importe total', type: 'number', step: '0.01', min: '0.01', placeholder: '82.40' },
+    { name: 'price_per_liter', label: 'Precio por litro', type: 'number', step: '0.001', min: '0.001', placeholder: '1.589' },
+    { name: 'odometer_at', label: 'Odómetro', type: 'number', min: '0', placeholder: '15300' },
+    { name: 'station_name', label: 'Gasolinera o ubicación', placeholder: 'Repsol Girona', fullWidth: true },
+    { name: 'full_tank', label: 'Depósito lleno', type: 'checkbox', fullWidth: true },
+  ]
+
+  async function updateFuelRecord() {
     if (!editingFuel) return
     const response = await fetch('/api/records', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'fuel_logs', id: editingFuel.id, values: { station_name: editingFuel.station } }),
+      body: JSON.stringify({
+        table: 'fuel_logs',
+        id: editingFuel.id,
+        values: {
+          date: editingFuel.date,
+          amount: parseFloat(editingFuel.amount),
+          price_per_liter: parseFloat(editingFuel.price_per_liter),
+          odometer_at: editingFuel.odometer_at ? parseInt(editingFuel.odometer_at, 10) : null,
+          station_name: editingFuel.station_name || null,
+          full_tank: editingFuel.full_tank,
+        },
+      }),
     })
     if (!response.ok) {
       setError('No se pudo actualizar el repostaje. Revisa la conexión e inténtalo de nuevo.')
@@ -367,7 +396,20 @@ export default function FuelPage() {
                         <span className="text-subhead">{record.odometer_at ? `${record.odometer_at} km` : record.full_tank ? 'depósito lleno' : 'parcial'}</span>
                       </div>
                       <div className={styles.itemActions}>
-                        <button type="button" onClick={() => setEditingFuel({ id: record.id, station: record.station_name ?? '' })}>Editar</button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingFuel({
+                            id: record.id,
+                            date: record.date.slice(0, 10),
+                            amount: String(record.amount),
+                            price_per_liter: String(record.price_per_liter),
+                            odometer_at: record.odometer_at ? String(record.odometer_at) : '',
+                            station_name: record.station_name ?? '',
+                            full_tank: record.full_tank,
+                          })}
+                        >
+                          Editar
+                        </button>
                         <button type="button" onClick={() => setDeletingFuelId(record.id)}>Borrar</button>
                       </div>
                     </div>
@@ -377,17 +419,15 @@ export default function FuelPage() {
           </div>
         </section>
       </div>
-      <ActionDialog
+      <RecordEditDialog
         open={Boolean(editingFuel)}
-        title="Editar gasolinera"
-        description="Actualiza la ubicación o nombre de la gasolinera sin modificar el importe ni el odómetro."
-        inputLabel="Gasolinera o ubicación"
-        inputValue={editingFuel?.station ?? ''}
-        inputPlaceholder="Ej. Repsol Girona"
-        confirmLabel="Guardar cambios"
-        onInputChange={(value) => setEditingFuel((current) => current ? { ...current, station: value } : current)}
+        title="Editar repostaje"
+        description="Corrige fecha, importe, precio, odómetro, gasolinera o si fue depósito lleno."
+        fields={fuelEditFields}
+        values={editingFuel ?? {}}
+        onChange={(name, value) => setEditingFuel((current) => current ? { ...current, [name]: value } : current)}
         onCancel={() => setEditingFuel(null)}
-        onConfirm={() => void updateFuelStation()}
+        onConfirm={() => void updateFuelRecord()}
       />
       <ActionDialog
         open={Boolean(deletingFuelId)}

@@ -5,6 +5,7 @@ import { createDailyRecord, type DailyRecordStatus, type DailyRecord, type Daily
 import { Loader2, CheckCircle2, AlertCircle, Navigation, MapPin, Home, Plus, Trash2 } from 'lucide-react'
 import { formatCoordinates, formatStoredLocation, getStoredLocation, positionToStoredLocation, resolveMunicipality, saveStoredLocation, type StoredLocation } from '@/lib/client-location'
 import { ActionDialog } from '@/components/ui/action-dialog'
+import { RecordEditDialog, type RecordEditField } from '@/components/ui/record-edit-dialog'
 import styles from './page.module.css'
 
 interface FieldErrors {
@@ -66,7 +67,21 @@ export default function DailyPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [cachedLocation, setCachedLocation] = useState<StoredLocation | null>(null)
-  const [editingRecord, setEditingRecord] = useState<{ id: string; notes: string } | null>(null)
+  const [editingRecord, setEditingRecord] = useState<{
+    id: string
+    date: string
+    status: DailyRecordStatus
+    location_name: string
+    notes: string
+    accommodation_cost: string
+    daily_expenses: string
+    daily_expenses_notes: string
+    visited_places: string
+    tags: string
+    grey_water_emptied: boolean
+    black_water_emptied: boolean
+    fresh_water_filled: boolean
+  } | null>(null)
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null)
 
   const updateStop = (key: string, patch: Partial<DailyStop>) => {
@@ -282,12 +297,55 @@ export default function DailyPage() {
       .some((value) => String(value).toLowerCase().includes(query))
   })
 
-  async function updateDailyNote() {
+  const dailyEditFields: RecordEditField[] = [
+    { name: 'date', label: 'Fecha', type: 'date' },
+    {
+      name: 'status',
+      label: 'Estado',
+      type: 'select',
+      options: [
+        { value: 'travel', label: 'De viaje' },
+        { value: 'parking', label: 'Parking' },
+        { value: 'motorhome_area', label: 'Área AC' },
+        { value: 'vacation_home', label: 'En casa' },
+      ],
+    },
+    { name: 'location_name', label: 'Municipio o ubicación', placeholder: 'Girona, Área AC...', fullWidth: true },
+    { name: 'notes', label: 'Bitácora', type: 'textarea', placeholder: 'Notas del día', fullWidth: true },
+    { name: 'accommodation_cost', label: 'Alojamiento', type: 'number', step: '0.01', min: '0', placeholder: '18.00' },
+    { name: 'daily_expenses', label: 'Otros gastos', type: 'number', step: '0.01', min: '0', placeholder: '42.50' },
+    { name: 'daily_expenses_notes', label: 'Detalle de gastos', placeholder: 'Peaje, compra, entrada...', fullWidth: true },
+    { name: 'visited_places', label: 'Lugares visitados', placeholder: 'Lugar A, Lugar B', fullWidth: true },
+    { name: 'tags', label: 'Etiquetas', placeholder: 'naturaleza, recomendado', fullWidth: true },
+    { name: 'grey_water_emptied', label: 'Vaciado aguas grises', type: 'checkbox' },
+    { name: 'black_water_emptied', label: 'Vaciado aguas negras', type: 'checkbox' },
+    { name: 'fresh_water_filled', label: 'Llenado aguas limpias', type: 'checkbox' },
+  ]
+
+  async function updateDailyRecord() {
     if (!editingRecord) return
+    const splitList = (value: string) => value.split(',').map((item) => item.trim()).filter(Boolean)
     const response = await fetch('/api/records', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'daily_logs', id: editingRecord.id, values: { notes: editingRecord.notes } }),
+      body: JSON.stringify({
+        table: 'daily_logs',
+        id: editingRecord.id,
+        values: {
+          date: editingRecord.date,
+          status: editingRecord.status,
+          location_name: editingRecord.location_name || null,
+          notes: editingRecord.notes || null,
+          accommodation_cost: editingRecord.accommodation_cost ? parseFloat(editingRecord.accommodation_cost) : null,
+          daily_expenses: editingRecord.daily_expenses ? parseFloat(editingRecord.daily_expenses) : null,
+          daily_expenses_notes: editingRecord.daily_expenses_notes || null,
+          visited_places: splitList(editingRecord.visited_places),
+          tags: splitList(editingRecord.tags),
+          grey_water_emptied: editingRecord.grey_water_emptied,
+          black_water_emptied: editingRecord.black_water_emptied,
+          fresh_water_filled: editingRecord.fresh_water_filled,
+        },
+      }),
     })
     if (!response.ok) {
       setError('No se pudo actualizar el registro. Revisa la conexión e inténtalo de nuevo.')
@@ -692,7 +750,26 @@ export default function DailyPage() {
                     </div>
                   )}
                   <div className={styles.itemActions}>
-                    <button type="button" onClick={() => setEditingRecord({ id: item.id, notes: item.notes ?? '' })}>Editar nota</button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingRecord({
+                        id: item.id,
+                        date: item.date.slice(0, 10),
+                        status: item.status,
+                        location_name: item.location_name ?? '',
+                        notes: item.notes ?? '',
+                        accommodation_cost: item.accommodation_cost ? String(item.accommodation_cost) : '',
+                        daily_expenses: item.daily_expenses ? String(item.daily_expenses) : '',
+                        daily_expenses_notes: item.daily_expenses_notes ?? '',
+                        visited_places: item.visited_places?.join(', ') ?? '',
+                        tags: item.tags?.join(', ') ?? '',
+                        grey_water_emptied: item.grey_water_emptied,
+                        black_water_emptied: item.black_water_emptied,
+                        fresh_water_filled: item.fresh_water_filled,
+                      })}
+                    >
+                      Editar
+                    </button>
                     <button type="button" onClick={() => setDeletingRecordId(item.id)}>Borrar</button>
                   </div>
                 </div>
@@ -701,17 +778,15 @@ export default function DailyPage() {
           </div>
         </section>
       </div>
-      <ActionDialog
+      <RecordEditDialog
         open={Boolean(editingRecord)}
-        title="Editar nota diaria"
-        description="Actualiza la nota de este registro sin tocar la ubicación ni el viaje asociado."
-        inputLabel="Nota"
-        inputValue={editingRecord?.notes ?? ''}
-        inputPlaceholder="Escribe la nota"
-        confirmLabel="Guardar cambios"
-        onInputChange={(value) => setEditingRecord((current) => current ? { ...current, notes: value } : current)}
+        title="Editar registro diario"
+        description="Corrige estado, fecha, ubicación, notas, gastos, lugares visitados, etiquetas o depósitos."
+        fields={dailyEditFields}
+        values={editingRecord ?? {}}
+        onChange={(name, value) => setEditingRecord((current) => current ? { ...current, [name]: value } : current)}
         onCancel={() => setEditingRecord(null)}
-        onConfirm={() => void updateDailyNote()}
+        onConfirm={() => void updateDailyRecord()}
       />
       <ActionDialog
         open={Boolean(deletingRecordId)}
