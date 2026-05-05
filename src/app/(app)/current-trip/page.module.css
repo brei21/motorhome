@@ -7,6 +7,7 @@
 
 .hero,
 .timeline,
+.livePanel,
 .locationCard,
 .metrics div {
   border: 1px solid rgba(17, 24, 39, 0.08);
@@ -74,7 +75,7 @@
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -93,8 +94,165 @@
 }
 
 .metrics strong {
-  font-size: 26px;
+  font-size: clamp(20px, 2.4vw, 26px);
   letter-spacing: -0.05em;
+}
+
+.livePanel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 170, 77, 0.16), transparent 28%),
+    white;
+}
+
+.locationStrip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 20px;
+  background: #fffaf4;
+  border: 1px solid rgba(250, 176, 91, 0.22);
+}
+
+.locationStrip svg {
+  color: var(--brand-orange);
+}
+
+.locationStrip div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.locationStrip span {
+  color: var(--motor-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.locationStrip button,
+.quickForm .primary {
+  border: 0;
+  cursor: pointer;
+}
+
+.locationStrip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: white;
+  color: var(--motor-text);
+  font-weight: 850;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.locationStrip button:disabled,
+.quickGrid button:disabled,
+.quickForm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quickGrid button,
+.quickLink {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 112px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 24px;
+  background: #fafafa;
+  color: var(--motor-text);
+  font: inherit;
+  font-weight: 850;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.quickGrid button:hover,
+.quickLink:hover {
+  transform: translateY(-1px);
+  border-color: rgba(250, 176, 91, 0.52);
+  background: #fff8ef;
+}
+
+.quickGrid svg,
+.quickLink svg {
+  color: var(--brand-orange);
+}
+
+.quickActive {
+  background: var(--brand-orange-soft) !important;
+  border-color: rgba(250, 176, 91, 0.72) !important;
+}
+
+.quickForm {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 24px;
+  background: white;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.quickFormHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quickFormHeader span {
+  color: var(--brand-orange);
+  font-weight: 800;
+}
+
+.quickFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quickFields label {
+  display: grid;
+  gap: 7px;
+  color: var(--motor-text-secondary);
+  font-weight: 800;
+}
+
+.quickFields input,
+.quickFields textarea {
+  width: 100%;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 16px;
+  background: #fafafa;
+  padding: 12px 14px;
+  color: var(--motor-text);
+  font: inherit;
+}
+
+.quickFields textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.fullField {
+  grid-column: 1 / -1;
 }
 
 .timeline {
@@ -215,9 +373,29 @@
   }
 }
 
+@media (max-width: 1100px) {
+  .metrics,
+  .quickGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
   .metrics {
     grid-template-columns: 1fr;
+  }
+
+  .quickGrid,
+  .quickFields {
+    grid-template-columns: 1fr;
+  }
+
+  .locationStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .locationStrip button {
+    width: 100%;
   }
 
   .locationCard {
