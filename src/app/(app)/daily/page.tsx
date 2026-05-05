@@ -369,11 +369,11 @@ export default function DailyPage() {
             </div>
 
             <div className={styles.inputGroup}>
-              <label className="text-headline">Notas de Ubicación (Opcional)</label>
+              <label className="text-headline">Municipio o ubicación manual</label>
               <input 
                 type="text" 
                 className={styles.bentoInput}
-                placeholder="Ubicacion actual o referencia"
+                placeholder="Ej. Fisterra, Área AC de Lugo, Camping..."
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
                 disabled={loading}
@@ -381,8 +381,8 @@ export default function DailyPage() {
               {status === 'travel' && (
                 <p className="text-subhead" style={{ marginTop: 8, color: 'var(--accent-blue)' }}>
                   {cachedLocation
-                    ? `Se usará la última ubicación GPS autorizada: ${formatStoredLocation(cachedLocation)}.`
-                    : 'Al guardar se solicitará permiso de GPS para asociar este registro al viaje activo.'}
+                    ? `Se usará la última ubicación GPS autorizada: ${formatStoredLocation(cachedLocation)}. Puedes sobrescribirla escribiendo el municipio.`
+                    : 'Al guardar se pedirá GPS e intentaremos detectar el municipio. Si no aparece, escribe la ubicación manualmente.'}
                 </p>
               )}
               {gpsMessage && (

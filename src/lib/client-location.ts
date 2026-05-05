@@ -64,22 +64,16 @@ export async function resolveMunicipality(location: Pick<StoredLocation, 'latitu
   const params = new URLSearchParams({
     latitude: String(location.latitude),
     longitude: String(location.longitude),
-    localityLanguage: 'es',
   })
 
   try {
-    const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?${params.toString()}`, {
+    const response = await fetch(`/api/geocode/reverse?${params.toString()}`, {
       signal: AbortSignal.timeout(4500),
     })
     if (!response.ok) return null
 
-    const data = await response.json() as {
-      city?: string
-      locality?: string
-      principalSubdivision?: string
-      countryName?: string
-    }
-    return data.city || data.locality || data.principalSubdivision || data.countryName || null
+    const data = await response.json() as { locality?: string | null }
+    return data.locality || null
   } catch {
     return null
   }
