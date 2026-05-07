@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { CalendarDays, Euro, Flame, Fuel, Loader2, MapPin, Navigation, Plus, Wrench } from 'lucide-react'
 import { createDailyRecord } from '@/app/actions/daily-records'
 import { formatCoordinates, positionToStoredLocation, resolveMunicipality, saveStoredLocation, type StoredLocation } from '@/lib/client-location'
+import { DAILY_EXPENSE_CATEGORIES, type DailyExpenseCategoryKey } from '@/lib/expense-categories'
 import styles from './page.module.css'
 
 type QuickMode = 'stop' | 'note' | 'expense'
@@ -62,6 +63,7 @@ export function LiveTripConsole({ activeTripId, startLocation }: { activeTripId:
   const [place, setPlace] = useState('')
   const [note, setNote] = useState('')
   const [amount, setAmount] = useState('')
+  const [expenseCategory, setExpenseCategory] = useState<DailyExpenseCategoryKey>('supermarket')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [location, setLocation] = useState<LocationState>({
@@ -114,6 +116,8 @@ export function LiveTripConsole({ activeTripId, startLocation }: { activeTripId:
       const locationName = place.trim() || stored?.locality || (stored ? formatCoordinates(stored) : startLocation || null)
       const cleanNote = note.trim()
       const cleanAmount = amount ? parseFloat(amount) : null
+      const category = DAILY_EXPENSE_CATEGORIES.find((item) => item.key === expenseCategory)
+      const categoryLabel = category?.label ?? 'Gasto'
 
       await createDailyRecord({
         trip_id: activeTripId,
@@ -123,10 +127,11 @@ export function LiveTripConsole({ activeTripId, startLocation }: { activeTripId:
         longitude: stored?.longitude ?? null,
         location_name: locationName,
         notes: mode === 'expense'
-          ? cleanNote || 'Gasto rápido registrado desde Viaje en directo.'
+          ? cleanNote || `${categoryLabel} registrado desde Viaje en directo.`
           : cleanNote || (mode === 'stop' ? 'Parada rápida registrada desde Viaje en directo.' : null),
         daily_expenses: mode === 'expense' ? cleanAmount : null,
-        daily_expenses_notes: mode === 'expense' ? cleanNote || null : null,
+        daily_expenses_notes: mode === 'expense' ? `${categoryLabel}${cleanNote ? `: ${cleanNote}` : ''}` : null,
+        daily_expense_breakdown: mode === 'expense' && cleanAmount ? { [expenseCategory]: cleanAmount } : {},
         visited_places: mode === 'stop' && locationName ? [locationName] : [],
         stops: mode === 'stop' && locationName
           ? [{ type: 'visit', name: locationName, notes: cleanNote || null, latitude: stored?.latitude ?? null, longitude: stored?.longitude ?? null }]
@@ -188,10 +193,20 @@ export function LiveTripConsole({ activeTripId, startLocation }: { activeTripId:
             <input value={place} onChange={(event) => setPlace(event.target.value)} placeholder="Ej. Área AC de Llanes" disabled={!activeTripId || saving} />
           </label>
           {mode === 'expense' && (
-            <label>
-              <span>Importe</span>
-              <input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" disabled={!activeTripId || saving} />
-            </label>
+            <>
+              <label>
+                <span>Categoría</span>
+                <select value={expenseCategory} onChange={(event) => setExpenseCategory(event.target.value as DailyExpenseCategoryKey)} disabled={!activeTripId || saving}>
+                  {DAILY_EXPENSE_CATEGORIES.map((category) => (
+                    <option key={category.key} value={category.key}>{category.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Importe</span>
+                <input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" disabled={!activeTripId || saving} />
+              </label>
+            </>
           )}
           <label className={styles.fullField}>
             <span>{copy.note}</span>

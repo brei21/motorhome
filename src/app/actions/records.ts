@@ -15,6 +15,7 @@ const editableColumns: Record<EditableTable, Set<string>> = {
     'accommodation_cost',
     'daily_expenses',
     'daily_expenses_notes',
+    'daily_expense_breakdown',
     'visited_places',
     'stops',
     'grey_water_emptied',
@@ -29,8 +30,22 @@ const editableColumns: Record<EditableTable, Set<string>> = {
   trips: new Set(['start_location', 'end_location', 'notes', 'start_odometer', 'end_odometer']),
 }
 
+const jsonbColumns: Partial<Record<EditableTable, Set<string>>> = {
+  daily_logs: new Set(['daily_expense_breakdown', 'stops']),
+}
+
 function quote(identifier: string) {
   return `"${identifier.replaceAll('"', '""')}"`
+}
+
+function isJsonbColumn(table: EditableTable, key: string) {
+  return Boolean(jsonbColumns[table]?.has(key))
+}
+
+function serializeValue(table: EditableTable, key: string, value: unknown) {
+  if (value === '') return null
+  if (isJsonbColumn(table, key)) return JSON.stringify(value ?? {})
+  return value
 }
 
 function revalidateCommon() {
@@ -51,8 +66,10 @@ export async function updateRecord(table: EditableTable, id: string, values: Rec
     throw new Error('No editable fields supplied.')
   }
 
-  const assignments = entries.map(([key], index) => `${quote(key)} = $${index + 2}`).join(', ')
-  const params = [id, ...entries.map(([, value]) => value === '' ? null : value)]
+  const assignments = entries
+    .map(([key], index) => `${quote(key)} = $${index + 2}${isJsonbColumn(table, key) ? '::jsonb' : ''}`)
+    .join(', ')
+  const params = [id, ...entries.map(([key, value]) => serializeValue(table, key, value))]
   const res = await query(
     `UPDATE ${quote(table)} SET ${assignments} WHERE id = $1 RETURNING id`,
     params

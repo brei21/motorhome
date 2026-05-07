@@ -236,7 +236,8 @@
 }
 
 .quickFields input,
-.quickFields textarea {
+.quickFields textarea,
+.quickFields select {
   width: 100%;
   border: 1px solid rgba(17, 24, 39, 0.1);
   border-radius: 16px;

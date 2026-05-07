@@ -38,6 +38,7 @@ export async function GET(request: Request) {
            OR array_to_string(visited_places, ' ') ILIKE $1
            OR array_to_string(tags, ' ') ILIKE $1
            OR stops::text ILIKE $1
+           OR daily_expense_breakdown::text ILIKE $1
 
         UNION ALL
 

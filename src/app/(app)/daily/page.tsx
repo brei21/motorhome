@@ -6,6 +6,14 @@ import { Loader2, CheckCircle2, AlertCircle, Navigation, MapPin, Home, Plus, Tra
 import { formatCoordinates, formatStoredLocation, getStoredLocation, positionToStoredLocation, resolveMunicipality, saveStoredLocation, type StoredLocation } from '@/lib/client-location'
 import { ActionDialog } from '@/components/ui/action-dialog'
 import { RecordEditDialog, type RecordEditField } from '@/components/ui/record-edit-dialog'
+import {
+  DAILY_EXPENSE_CATEGORIES,
+  formatExpenseBreakdown,
+  normalizeExpenseBreakdown,
+  sumExpenseBreakdown,
+  type DailyExpenseBreakdown,
+  type DailyExpenseCategoryKey,
+} from '@/lib/expense-categories'
 import styles from './page.module.css'
 
 interface FieldErrors {
@@ -14,6 +22,36 @@ interface FieldErrors {
 }
 
 type StopDraft = DailyStop & { key: string }
+type ExpenseInputs = Record<DailyExpenseCategoryKey, string>
+
+function emptyExpenseInputs(): ExpenseInputs {
+  return DAILY_EXPENSE_CATEGORIES.reduce((acc, category) => {
+    acc[category.key] = ''
+    return acc
+  }, {} as ExpenseInputs)
+}
+
+function expenseInputsToBreakdown(inputs: ExpenseInputs): DailyExpenseBreakdown {
+  return DAILY_EXPENSE_CATEGORIES.reduce<DailyExpenseBreakdown>((acc, category) => {
+    const amount = Number.parseFloat(inputs[category.key])
+    if (Number.isFinite(amount) && amount > 0) {
+      acc[category.key] = amount
+    }
+    return acc
+  }, {})
+}
+
+function breakdownToExpenseInputs(value: unknown): ExpenseInputs {
+  const breakdown = normalizeExpenseBreakdown(value)
+  return DAILY_EXPENSE_CATEGORIES.reduce((acc, category) => {
+    acc[category.key] = breakdown[category.key] ? String(breakdown[category.key]) : ''
+    return acc
+  }, {} as ExpenseInputs)
+}
+
+function formatMoney(value: number) {
+  return value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 const baseStops = (): StopDraft[] => [
   { key: 'start', type: 'start', name: '', notes: '' },
@@ -57,7 +95,7 @@ export default function DailyPage() {
   const [visitedPlaces, setVisitedPlaces] = useState('')
   const [stops, setStops] = useState<StopDraft[]>(baseStops)
   const [accommodationCost, setAccommodationCost] = useState('')
-  const [dailyExpenses, setDailyExpenses] = useState('')
+  const [dailyExpenseInputs, setDailyExpenseInputs] = useState<ExpenseInputs>(emptyExpenseInputs)
   const [dailyExpensesNotes, setDailyExpensesNotes] = useState('')
   const [greyWater, setGreyWater] = useState(false)
   const [blackWater, setBlackWater] = useState(false)
@@ -67,22 +105,24 @@ export default function DailyPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [cachedLocation, setCachedLocation] = useState<StoredLocation | null>(null)
-  const [editingRecord, setEditingRecord] = useState<{
+  const [editingRecord, setEditingRecord] = useState<({
     id: string
     date: string
     status: DailyRecordStatus
     location_name: string
     notes: string
     accommodation_cost: string
-    daily_expenses: string
     daily_expenses_notes: string
     visited_places: string
     tags: string
     grey_water_emptied: boolean
     black_water_emptied: boolean
     fresh_water_filled: boolean
-  } | null>(null)
+  } & Record<string, string | boolean>) | null>(null)
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null)
+
+  const dailyExpenseBreakdown = expenseInputsToBreakdown(dailyExpenseInputs)
+  const dailyExpensesTotal = sumExpenseBreakdown(dailyExpenseBreakdown)
 
   const updateStop = (key: string, patch: Partial<DailyStop>) => {
     setStops((current) => current.map((stop) => stop.key === key ? { ...stop, ...patch } : stop))
@@ -126,14 +166,15 @@ export default function DailyPage() {
     return undefined
   }
 
+  const updateDailyExpense = (key: DailyExpenseCategoryKey, value: string) => {
+    setDailyExpenseInputs((current) => ({ ...current, [key]: value }))
+    const err = validateField('dailyExpenses', value)
+    setErrors(prev => ({ ...prev, dailyExpenses: err }))
+  }
+
   const handleInputChange = (field: string, value: string) => {
     if (field === 'accommodationCost') {
       setAccommodationCost(value)
-      const err = validateField(field, value)
-      setErrors(prev => ({ ...prev, [field]: err }))
-    }
-    if (field === 'dailyExpenses') {
-      setDailyExpenses(value)
       const err = validateField(field, value)
       setErrors(prev => ({ ...prev, [field]: err }))
     }
@@ -143,7 +184,7 @@ export default function DailyPage() {
     setTouched(prev => ({ ...prev, [field]: true }))
     const err = validateField(
       field,
-      field === 'accommodationCost' ? accommodationCost : field === 'dailyExpenses' ? dailyExpenses : ''
+      field === 'accommodationCost' ? accommodationCost : field === 'dailyExpenses' ? String(dailyExpensesTotal || '') : ''
     )
     if (err) {
       setErrors(prev => ({ ...prev, [field]: err }))
@@ -156,7 +197,7 @@ export default function DailyPage() {
     setGpsMessage(null)
 
     const costError = validateField('accommodationCost', accommodationCost)
-    const dailyExpensesError = validateField('dailyExpenses', dailyExpenses)
+    const dailyExpensesError = validateField('dailyExpenses', String(dailyExpensesTotal || ''))
     if (costError || dailyExpensesError) {
       setErrors({ accommodationCost: costError, dailyExpenses: dailyExpensesError })
       setTouched({ accommodationCost: true, dailyExpenses: true })
@@ -228,8 +269,9 @@ export default function DailyPage() {
         location_name: resolvedLocationName,
         notes: notes || null,
         accommodation_cost: accommodationCost ? parseFloat(accommodationCost) : null,
-        daily_expenses: dailyExpenses ? parseFloat(dailyExpenses) : null,
+        daily_expenses: dailyExpensesTotal > 0 ? dailyExpensesTotal : null,
         daily_expenses_notes: dailyExpensesNotes || null,
+        daily_expense_breakdown: dailyExpenseBreakdown,
         visited_places: fallbackVisitedPlaces.length ? fallbackVisitedPlaces : normalizedStops.map((stop) => stop.name),
         stops: normalizedStops,
         grey_water_emptied: greyWater,
@@ -245,7 +287,7 @@ export default function DailyPage() {
       setVisitedPlaces('')
       setStops(baseStops())
       setAccommodationCost('')
-      setDailyExpenses('')
+      setDailyExpenseInputs(emptyExpenseInputs())
       setDailyExpensesNotes('')
       setGreyWater(false)
       setBlackWater(false)
@@ -289,6 +331,10 @@ export default function DailyPage() {
       record.location_name,
       record.notes,
       record.daily_expenses_notes,
+      ...formatExpenseBreakdown(normalizeExpenseBreakdown(record.daily_expense_breakdown)).flatMap((expense) => [
+        expense.label,
+        String(expense.amount),
+      ]),
       ...(record.visited_places ?? []),
       ...(record.stops ?? []).flatMap((stop) => [stop.name, stop.notes]),
       ...(record.tags ?? []),
@@ -313,7 +359,14 @@ export default function DailyPage() {
     { name: 'location_name', label: 'Municipio o ubicación', placeholder: 'Girona, Área AC...', fullWidth: true },
     { name: 'notes', label: 'Bitácora', type: 'textarea', placeholder: 'Notas del día', fullWidth: true },
     { name: 'accommodation_cost', label: 'Alojamiento', type: 'number', step: '0.01', min: '0', placeholder: '18.00' },
-    { name: 'daily_expenses', label: 'Otros gastos', type: 'number', step: '0.01', min: '0', placeholder: '42.50' },
+    ...DAILY_EXPENSE_CATEGORIES.map((category): RecordEditField => ({
+      name: `expense_${category.key}`,
+      label: category.label,
+      type: 'number',
+      step: '0.01',
+      min: '0',
+      placeholder: '0.00',
+    })),
     { name: 'daily_expenses_notes', label: 'Detalle de gastos', placeholder: 'Peaje, compra, entrada...', fullWidth: true },
     { name: 'visited_places', label: 'Lugares visitados', placeholder: 'Lugar A, Lugar B', fullWidth: true },
     { name: 'tags', label: 'Etiquetas', placeholder: 'naturaleza, recomendado', fullWidth: true },
@@ -325,6 +378,14 @@ export default function DailyPage() {
   async function updateDailyRecord() {
     if (!editingRecord) return
     const splitList = (value: string) => value.split(',').map((item) => item.trim()).filter(Boolean)
+    const editedBreakdown = DAILY_EXPENSE_CATEGORIES.reduce<DailyExpenseBreakdown>((acc, category) => {
+      const amount = Number.parseFloat(String(editingRecord[`expense_${category.key}`] ?? ''))
+      if (Number.isFinite(amount) && amount > 0) {
+        acc[category.key] = amount
+      }
+      return acc
+    }, {})
+    const editedExpensesTotal = sumExpenseBreakdown(editedBreakdown)
     const response = await fetch('/api/records', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -337,8 +398,9 @@ export default function DailyPage() {
           location_name: editingRecord.location_name || null,
           notes: editingRecord.notes || null,
           accommodation_cost: editingRecord.accommodation_cost ? parseFloat(editingRecord.accommodation_cost) : null,
-          daily_expenses: editingRecord.daily_expenses ? parseFloat(editingRecord.daily_expenses) : null,
+          daily_expenses: editedExpensesTotal > 0 ? editedExpensesTotal : null,
           daily_expenses_notes: editingRecord.daily_expenses_notes || null,
+          daily_expense_breakdown: editedBreakdown,
           visited_places: splitList(editingRecord.visited_places),
           tags: splitList(editingRecord.tags),
           grey_water_emptied: editingRecord.grey_water_emptied,
@@ -592,21 +654,30 @@ export default function DailyPage() {
             </div>
 
             <div className={styles.inputGroup}>
-              <label className="text-headline">Otros gastos del día (Opcional)</label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <span style={{ position: 'absolute', left: 16, fontSize: 16, color: hasError('dailyExpenses') ? 'var(--accent-red)' : 'var(--text-secondary)', zIndex: 2, fontWeight: 600 }}>€</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className={`${styles.bentoInput} ${hasError('dailyExpenses') ? styles.bentoInputError : ''}`}
-                  placeholder="0.00  (comida, peajes, entradas, compras...)"
-                  value={dailyExpenses}
-                  onChange={(e) => handleInputChange('dailyExpenses', e.target.value)}
-                  onBlur={() => handleInputBlur('dailyExpenses')}
-                  disabled={loading}
-                  style={{ paddingLeft: 36 }}
-                />
+              <div className={styles.expenseHeader}>
+                <label className="text-headline">Gastos del día por categoría</label>
+                <span>{formatMoney(dailyExpensesTotal)} €</span>
+              </div>
+              <div className={styles.expenseGrid}>
+                {DAILY_EXPENSE_CATEGORIES.map((category) => (
+                  <label key={category.key} className={styles.expenseField}>
+                    <span>{category.label}</span>
+                    <div className={styles.expenseInputWrap}>
+                      <span>€</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className={`${styles.bentoInput} ${hasError('dailyExpenses') ? styles.bentoInputError : ''}`}
+                        placeholder="0.00"
+                        value={dailyExpenseInputs[category.key]}
+                        onChange={(e) => updateDailyExpense(category.key, e.target.value)}
+                        onBlur={() => handleInputBlur('dailyExpenses')}
+                        disabled={loading}
+                      />
+                    </div>
+                  </label>
+                ))}
               </div>
               <input
                 type="text"
@@ -739,8 +810,12 @@ export default function DailyPage() {
                   {(item.accommodation_cost || item.daily_expenses) && (
                     <span className={styles.recordNote}>
                       Gastos: {[
-                        item.accommodation_cost ? `alojamiento ${Number(item.accommodation_cost).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €` : null,
-                        item.daily_expenses ? `día ${Number(item.daily_expenses).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €` : null,
+                        item.accommodation_cost ? `alojamiento ${formatMoney(Number(item.accommodation_cost))} €` : null,
+                        ...formatExpenseBreakdown(normalizeExpenseBreakdown(item.daily_expense_breakdown))
+                          .map((expense) => `${expense.label.toLowerCase()} ${formatMoney(expense.amount)} €`),
+                        !formatExpenseBreakdown(normalizeExpenseBreakdown(item.daily_expense_breakdown)).length && item.daily_expenses
+                          ? `día ${formatMoney(Number(item.daily_expenses))} €`
+                          : null,
                       ].filter(Boolean).join(' · ')}
                     </span>
                   )}
@@ -759,13 +834,18 @@ export default function DailyPage() {
                         location_name: item.location_name ?? '',
                         notes: item.notes ?? '',
                         accommodation_cost: item.accommodation_cost ? String(item.accommodation_cost) : '',
-                        daily_expenses: item.daily_expenses ? String(item.daily_expenses) : '',
                         daily_expenses_notes: item.daily_expenses_notes ?? '',
                         visited_places: item.visited_places?.join(', ') ?? '',
                         tags: item.tags?.join(', ') ?? '',
                         grey_water_emptied: item.grey_water_emptied,
                         black_water_emptied: item.black_water_emptied,
                         fresh_water_filled: item.fresh_water_filled,
+                        ...Object.fromEntries(
+                          DAILY_EXPENSE_CATEGORIES.map((category) => [
+                            `expense_${category.key}`,
+                            breakdownToExpenseInputs(item.daily_expense_breakdown)[category.key],
+                          ])
+                        ),
                       })}
                     >
                       Editar

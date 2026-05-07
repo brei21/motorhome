@@ -213,6 +213,64 @@
   border-color: #ef4444;
 }
 
+.expenseHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.expenseHeader span {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 170, 77, 0.12);
+  color: var(--brand-orange);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.expenseGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.expenseField {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 16px;
+  background: #fffdfb;
+}
+
+.expenseField > span {
+  color: var(--motor-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.expenseInputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.expenseInputWrap > span {
+  position: absolute;
+  left: 12px;
+  z-index: 1;
+  color: var(--motor-text-secondary);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.expenseInputWrap input {
+  min-height: 42px;
+  padding-left: 30px;
+}
+
 .submitButton {
   min-height: 50px;
   margin-top: 4px;
@@ -435,6 +493,10 @@
   .stopsList {
     grid-template-columns: 1fr;
   }
+
+  .expenseGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -447,5 +509,14 @@
   .logHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .expenseHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .expenseGrid {
+    grid-template-columns: 1fr;
   }
 }

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CalendarDays, CircleDot, Flame, Fuel, MapPin, Navigation, Wrench } from 'lucide-react'
 import { getTripDetail } from '@/app/actions/trips'
+import { formatExpenseBreakdown, normalizeExpenseBreakdown } from '@/lib/expense-categories'
 import styles from './page.module.css'
 
 export const revalidate = 0
@@ -37,6 +38,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         item.notes || item.status,
         item.stops?.length ? item.stops.map((stop) => `${stop.name}`).join(' → ') : null,
         item.visited_places?.length ? `Visitado: ${item.visited_places.join(', ')}` : null,
+        formatExpenseBreakdown(normalizeExpenseBreakdown(item.daily_expense_breakdown)).length
+          ? `Gastos: ${formatExpenseBreakdown(normalizeExpenseBreakdown(item.daily_expense_breakdown))
+            .map((expense) => `${expense.label} ${formatMoney(expense.amount)}`)
+            .join(' · ')}`
+          : null,
       ].filter(Boolean).join(' · '),
     })),
     ...(trip.fuel_logs ?? []).map((item) => ({

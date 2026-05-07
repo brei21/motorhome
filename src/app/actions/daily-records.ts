@@ -5,6 +5,7 @@ import { query } from '@/lib/db'
 import { getActiveTrip, startTrip } from '@/app/actions/trips'
 import { getCurrentOdometer } from '@/app/actions/odometer-records'
 import { writeAuditLog } from '@/app/actions/audit'
+import { normalizeExpenseBreakdown, type DailyExpenseBreakdown } from '@/lib/expense-categories'
 
 export type DailyRecordStatus = 'travel' | 'parking' | 'motorhome_area' | 'vacation_home'
 export type DailyStopType = 'start' | 'visit' | 'overnight' | 'service' | 'other'
@@ -29,6 +30,7 @@ export interface DailyRecord {
   accommodation_cost: number | null
   daily_expenses: number | null
   daily_expenses_notes: string | null
+  daily_expense_breakdown: DailyExpenseBreakdown
   visited_places: string[]
   stops: DailyStop[]
   grey_water_emptied: boolean
@@ -50,6 +52,7 @@ export async function createDailyRecord(data: {
   accommodation_cost?: number | null
   daily_expenses?: number | null
   daily_expenses_notes?: string | null
+  daily_expense_breakdown?: DailyExpenseBreakdown
   visited_places?: string[]
   stops?: DailyStop[]
   grey_water_emptied?: boolean
@@ -90,10 +93,10 @@ export async function createDailyRecord(data: {
     `
       INSERT INTO daily_logs (
         trip_id, date, status, latitude, longitude, location_name, notes,
-        accommodation_cost, daily_expenses, daily_expenses_notes, visited_places, stops,
+        accommodation_cost, daily_expenses, daily_expenses_notes, daily_expense_breakdown, visited_places, stops,
         grey_water_emptied, black_water_emptied, fresh_water_filled, tags, photo_urls
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13::jsonb, $14, $15, $16, $17, $18)
       RETURNING *
     `,
     [
@@ -107,6 +110,7 @@ export async function createDailyRecord(data: {
       data.accommodation_cost ?? null,
       data.daily_expenses ?? null,
       data.daily_expenses_notes ?? null,
+      JSON.stringify(normalizeExpenseBreakdown(data.daily_expense_breakdown ?? {})),
       visitedPlaces,
       JSON.stringify(stops),
       data.grey_water_emptied ?? false,
@@ -138,6 +142,7 @@ export async function getDailyRecords(limit = 20) {
     ...r,
     accommodation_cost: r.accommodation_cost !== null ? Number(r.accommodation_cost) : null,
     daily_expenses: r.daily_expenses !== null ? Number(r.daily_expenses) : null,
+    daily_expense_breakdown: normalizeExpenseBreakdown(r.daily_expense_breakdown ?? {}),
     visited_places: r.visited_places ?? [],
     stops: normalizeDailyStops(r.stops ?? []),
     tags: r.tags ?? [],
