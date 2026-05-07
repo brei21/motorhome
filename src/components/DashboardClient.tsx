@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Calendar, Flame, Fuel, Gauge, Home, MapPin, Navigation, WalletCards, Wrench } from 'lucide-react'
 import Link from 'next/link'
+import { formatHeroCoordinates, isCoordinateText, parseCoordinateText } from '@/lib/location-display'
 import styles from '@/app/(app)/page.module.css'
 
 type Trip = {
@@ -118,9 +119,6 @@ const formatDate = (value: string | Date | null | undefined) => {
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
-const coordinatePattern = /^-?\d{1,2}(?:\.\d+)?,\s*-?\d{1,3}(?:\.\d+)?$/
-const formatCoords = (lat: number | null, lng: number | null) =>
-  lat !== null && lng !== null ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : null
 
 function daysSince(logs: DailyLog[], predicate: (log: DailyLog) => boolean) {
   const idx = logs.findIndex(predicate)
@@ -140,6 +138,7 @@ function daysUntil(value: string | Date | null | undefined) {
 
 export default function DashboardClient({ initialData }: { initialData: DashboardPayload }) {
   const [data, setData] = useState(initialData)
+  const [resolvedHeroLocality, setResolvedHeroLocality] = useState<{ key: string; locality: string | null } | null>(null)
 
   useEffect(() => {
     let active = true
@@ -174,16 +173,56 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
     data.currentOdometer > 0
 
   const location = useMemo(() => {
-    const coords = latestDaily ? formatCoords(latestDaily.latitude, latestDaily.longitude) : null
     const rawName = latestDaily?.location_name?.trim() || ''
-    const municipality = rawName && !coordinatePattern.test(rawName) ? rawName : null
+    const coordinatesFromName = parseCoordinateText(rawName)
+    const latitude = latestDaily?.latitude ?? coordinatesFromName?.latitude ?? null
+    const longitude = latestDaily?.longitude ?? coordinatesFromName?.longitude ?? null
+    const coords = latestDaily ? formatHeroCoordinates(latitude, longitude) : null
+    const coordinateKey = latitude !== null && longitude !== null ? `${latitude},${longitude}` : ''
+    const municipality = rawName && !isCoordinateText(rawName)
+      ? rawName
+      : resolvedHeroLocality?.key === coordinateKey
+        ? resolvedHeroLocality.locality
+        : null
     return {
-      city: municipality || FALLBACK_CITY,
+      city: municipality || (coords ? 'Municipio pendiente' : FALLBACK_CITY),
       coords,
+      latitude,
+      longitude,
+      coordinateKey,
+      needsReverseGeocode: Boolean(latestDaily && !municipality && latitude !== null && longitude !== null),
       status: latestDaily ? statusText[latestDaily.status] : 'Sin registro',
       since: latestDaily ? formatDate(latestDaily.date) : '—',
     }
-  }, [latestDaily])
+  }, [latestDaily, resolvedHeroLocality])
+
+  const reverseGeocodeKey = location.needsReverseGeocode && location.latitude !== null && location.longitude !== null
+    ? location.coordinateKey
+    : ''
+
+  useEffect(() => {
+    if (!reverseGeocodeKey) return
+
+    let active = true
+    const [latitude, longitude] = reverseGeocodeKey.split(',')
+    const params = new URLSearchParams({
+      latitude,
+      longitude,
+    })
+
+    fetch(`/api/geocode/reverse?${params.toString()}`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: { locality?: string | null } | null) => {
+        if (active) setResolvedHeroLocality({ key: reverseGeocodeKey, locality: payload?.locality || null })
+      })
+      .catch(() => {
+        if (active) setResolvedHeroLocality({ key: reverseGeocodeKey, locality: null })
+      })
+
+    return () => {
+      active = false
+    }
+  }, [reverseGeocodeKey])
 
   const maintenanceSummary = useMemo(() => {
     if (!data.maintenanceLogs.length) {
