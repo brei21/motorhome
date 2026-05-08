@@ -6,6 +6,7 @@ import { getActiveTrip, startTrip } from '@/app/actions/trips'
 import { getCurrentOdometer } from '@/app/actions/odometer-records'
 import { writeAuditLog } from '@/app/actions/audit'
 import { normalizeExpenseBreakdown, type DailyExpenseBreakdown } from '@/lib/expense-categories'
+import type { WeatherSnapshot } from '@/lib/weather'
 
 export type DailyRecordStatus = 'travel' | 'parking' | 'motorhome_area' | 'vacation_home'
 export type DailyStopType = 'start' | 'visit' | 'overnight' | 'service' | 'other'
@@ -31,6 +32,7 @@ export interface DailyRecord {
   daily_expenses: number | null
   daily_expenses_notes: string | null
   daily_expense_breakdown: DailyExpenseBreakdown
+  weather_snapshot: WeatherSnapshot | null
   visited_places: string[]
   stops: DailyStop[]
   grey_water_emptied: boolean
@@ -53,6 +55,7 @@ export async function createDailyRecord(data: {
   daily_expenses?: number | null
   daily_expenses_notes?: string | null
   daily_expense_breakdown?: DailyExpenseBreakdown
+  weather_snapshot?: WeatherSnapshot | null
   visited_places?: string[]
   stops?: DailyStop[]
   grey_water_emptied?: boolean
@@ -93,10 +96,10 @@ export async function createDailyRecord(data: {
     `
       INSERT INTO daily_logs (
         trip_id, date, status, latitude, longitude, location_name, notes,
-        accommodation_cost, daily_expenses, daily_expenses_notes, daily_expense_breakdown, visited_places, stops,
+        accommodation_cost, daily_expenses, daily_expenses_notes, daily_expense_breakdown, weather_snapshot, visited_places, stops,
         grey_water_emptied, black_water_emptied, fresh_water_filled, tags, photo_urls
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13::jsonb, $14, $15, $16, $17, $18)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14::jsonb, $15, $16, $17, $18, $19)
       RETURNING *
     `,
     [
@@ -111,6 +114,7 @@ export async function createDailyRecord(data: {
       data.daily_expenses ?? null,
       data.daily_expenses_notes ?? null,
       JSON.stringify(normalizeExpenseBreakdown(data.daily_expense_breakdown ?? {})),
+      data.weather_snapshot ? JSON.stringify(data.weather_snapshot) : null,
       visitedPlaces,
       JSON.stringify(stops),
       data.grey_water_emptied ?? false,
@@ -143,6 +147,7 @@ export async function getDailyRecords(limit = 20) {
     accommodation_cost: r.accommodation_cost !== null ? Number(r.accommodation_cost) : null,
     daily_expenses: r.daily_expenses !== null ? Number(r.daily_expenses) : null,
     daily_expense_breakdown: normalizeExpenseBreakdown(r.daily_expense_breakdown ?? {}),
+    weather_snapshot: r.weather_snapshot ?? null,
     visited_places: r.visited_places ?? [],
     stops: normalizeDailyStops(r.stops ?? []),
     tags: r.tags ?? [],

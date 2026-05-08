@@ -7,6 +7,7 @@ import { CalendarDays, Euro, Flame, Fuel, Loader2, MapPin, Navigation, Plus, Wre
 import { createDailyRecord } from '@/app/actions/daily-records'
 import { formatCoordinates, positionToStoredLocation, resolveMunicipality, saveStoredLocation, type StoredLocation } from '@/lib/client-location'
 import { DAILY_EXPENSE_CATEGORIES, type DailyExpenseCategoryKey } from '@/lib/expense-categories'
+import type { WeatherSnapshot } from '@/lib/weather'
 import styles from './page.module.css'
 
 type QuickMode = 'stop' | 'note' | 'expense'
@@ -34,6 +35,24 @@ function getCurrentPosition() {
       maximumAge: 60_000,
     })
   })
+}
+
+async function fetchCurrentWeather(latitude: number, longitude: number): Promise<WeatherSnapshot | null> {
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+  })
+
+  try {
+    const response = await fetch(`/api/weather/current?${params.toString()}`, {
+      signal: AbortSignal.timeout(5500),
+    })
+    if (!response.ok) return null
+    const data = await response.json() as { weather?: WeatherSnapshot | null }
+    return data.weather ?? null
+  } catch {
+    return null
+  }
 }
 
 const modeCopy: Record<QuickMode, { title: string; place: string; note: string; button: string }> = {
@@ -118,6 +137,7 @@ export function LiveTripConsole({ activeTripId, startLocation }: { activeTripId:
       const cleanAmount = amount ? parseFloat(amount) : null
       const category = DAILY_EXPENSE_CATEGORIES.find((item) => item.key === expenseCategory)
       const categoryLabel = category?.label ?? 'Gasto'
+      const weatherSnapshot = stored ? await fetchCurrentWeather(stored.latitude, stored.longitude) : null
 
       await createDailyRecord({
         trip_id: activeTripId,
@@ -132,6 +152,7 @@ export function LiveTripConsole({ activeTripId, startLocation }: { activeTripId:
         daily_expenses: mode === 'expense' ? cleanAmount : null,
         daily_expenses_notes: mode === 'expense' ? `${categoryLabel}${cleanNote ? `: ${cleanNote}` : ''}` : null,
         daily_expense_breakdown: mode === 'expense' && cleanAmount ? { [expenseCategory]: cleanAmount } : {},
+        weather_snapshot: weatherSnapshot,
         visited_places: mode === 'stop' && locationName ? [locationName] : [],
         stops: mode === 'stop' && locationName
           ? [{ type: 'visit', name: locationName, notes: cleanNote || null, latitude: stored?.latitude ?? null, longitude: stored?.longitude ?? null }]

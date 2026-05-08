@@ -14,6 +14,7 @@ import {
   type DailyExpenseBreakdown,
   type DailyExpenseCategoryKey,
 } from '@/lib/expense-categories'
+import { formatWeatherSummary, type WeatherSnapshot } from '@/lib/weather'
 import styles from './page.module.css'
 
 interface FieldErrors {
@@ -80,6 +81,24 @@ function getCurrentPosition() {
       maximumAge: 60_000,
     })
   })
+}
+
+async function fetchCurrentWeather(latitude: number, longitude: number): Promise<WeatherSnapshot | null> {
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+  })
+
+  try {
+    const response = await fetch(`/api/weather/current?${params.toString()}`, {
+      signal: AbortSignal.timeout(5500),
+    })
+    if (!response.ok) return null
+    const data = await response.json() as { weather?: WeatherSnapshot | null }
+    return data.weather ?? null
+  } catch {
+    return null
+  }
 }
 
 export default function DailyPage() {
@@ -211,6 +230,7 @@ export default function DailyPage() {
       let latitude: number | null = null
       let longitude: number | null = null
       let resolvedLocationName = locationName || null
+      let weatherSnapshot: WeatherSnapshot | null = null
 
       if (status === 'travel') {
         try {
@@ -223,6 +243,7 @@ export default function DailyPage() {
           setCachedLocation({ ...storedWithLocality, capturedAt })
           latitude = stored.latitude
           longitude = stored.longitude
+          weatherSnapshot = await fetchCurrentWeather(stored.latitude, stored.longitude)
 
           if (!resolvedLocationName) {
             resolvedLocationName = locality || formatCoordinates(stored)
@@ -235,6 +256,7 @@ export default function DailyPage() {
           if (stored) {
             latitude = stored.latitude
             longitude = stored.longitude
+            weatherSnapshot = await fetchCurrentWeather(stored.latitude, stored.longitude)
             if (!resolvedLocationName) {
               resolvedLocationName = formatStoredLocation(stored)
             }
@@ -272,6 +294,7 @@ export default function DailyPage() {
         daily_expenses: dailyExpensesTotal > 0 ? dailyExpensesTotal : null,
         daily_expenses_notes: dailyExpensesNotes || null,
         daily_expense_breakdown: dailyExpenseBreakdown,
+        weather_snapshot: weatherSnapshot,
         visited_places: fallbackVisitedPlaces.length ? fallbackVisitedPlaces : normalizedStops.map((stop) => stop.name),
         stops: normalizedStops,
         grey_water_emptied: greyWater,
@@ -807,6 +830,13 @@ export default function DailyPage() {
                     <span className={styles.recordNote}>Visitado: {item.visited_places.join(', ')}</span>
                   )}
                   {item.notes && <span className={styles.recordNote}>{item.notes}</span>}
+                  {item.weather_snapshot && (
+                    <span className={styles.recordNote}>
+                      Tiempo: {formatWeatherSummary(item.weather_snapshot)}
+                      {item.weather_snapshot.precipitation_mm !== null ? ` · lluvia ${item.weather_snapshot.precipitation_mm} mm` : ''}
+                      {item.weather_snapshot.wind_speed_kmh !== null ? ` · viento ${Math.round(item.weather_snapshot.wind_speed_kmh)} km/h` : ''}
+                    </span>
+                  )}
                   {(item.accommodation_cost || item.daily_expenses) && (
                     <span className={styles.recordNote}>
                       Gastos: {[

@@ -6,6 +6,7 @@ import type { DailyRecord, DailyRecordStatus, DailyStop } from '@/app/actions/da
 import type { LpgRecord } from '@/app/actions/lpg-records'
 import { writeAuditLog } from '@/app/actions/audit'
 import { normalizeExpenseBreakdown, type DailyExpenseBreakdown } from '@/lib/expense-categories'
+import type { WeatherSnapshot } from '@/lib/weather'
 
 export interface TripDailyRecord {
   id: string
@@ -20,6 +21,7 @@ export interface TripDailyRecord {
   daily_expenses: number | null
   daily_expenses_notes: string | null
   daily_expense_breakdown: DailyExpenseBreakdown
+  weather_snapshot: WeatherSnapshot | null
   visited_places: string[]
   stops: DailyStop[]
   grey_water_emptied: boolean
@@ -185,6 +187,7 @@ export async function listTrips(limit = 20) {
       accommodation_cost: row.accommodation_cost !== null ? Number(row.accommodation_cost) : null,
       daily_expenses: row.daily_expenses !== null ? Number(row.daily_expenses) : null,
       daily_expense_breakdown: normalizeExpenseBreakdown(row.daily_expense_breakdown ?? {}),
+      weather_snapshot: row.weather_snapshot ?? null,
       visited_places: row.visited_places ?? [],
       stops: row.stops ?? [],
     })
@@ -240,6 +243,7 @@ export async function getTripDetail(id: string) {
       accommodation_cost: row.accommodation_cost !== null ? Number(row.accommodation_cost) : null,
       daily_expenses: row.daily_expenses !== null ? Number(row.daily_expenses) : null,
       daily_expense_breakdown: normalizeExpenseBreakdown(row.daily_expense_breakdown ?? {}),
+      weather_snapshot: row.weather_snapshot ?? null,
       visited_places: row.visited_places ?? [],
       stops: row.stops ?? [],
     })),

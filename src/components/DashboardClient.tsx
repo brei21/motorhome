@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Calendar, Flame, Fuel, Gauge, Home, MapPin, Navigation, WalletCards, Wrench } from 'lucide-react'
+import { Calendar, CloudSun, Flame, Fuel, Gauge, Home, MapPin, Navigation, WalletCards, Wrench } from 'lucide-react'
 import Link from 'next/link'
 import { formatHeroCoordinates, isCoordinateText, parseCoordinateText } from '@/lib/location-display'
+import type { WeatherSnapshot } from '@/lib/weather'
 import styles from '@/app/(app)/page.module.css'
 
 type Trip = {
@@ -25,6 +26,7 @@ type DailyLog = {
   latitude: number | null
   longitude: number | null
   location_name: string | null
+  weather_snapshot: WeatherSnapshot | null
   fresh_water_filled: boolean
   grey_water_emptied: boolean
   black_water_emptied: boolean
@@ -139,6 +141,7 @@ function daysUntil(value: string | Date | null | undefined) {
 export default function DashboardClient({ initialData }: { initialData: DashboardPayload }) {
   const [data, setData] = useState(initialData)
   const [resolvedHeroLocality, setResolvedHeroLocality] = useState<{ key: string; locality: string | null } | null>(null)
+  const [currentWeather, setCurrentWeather] = useState<{ key: string; weather: WeatherSnapshot | null } | null>(null)
 
   useEffect(() => {
     let active = true
@@ -224,6 +227,29 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
     }
   }, [reverseGeocodeKey])
 
+  const weatherFetchKey = location.latitude !== null && location.longitude !== null ? location.coordinateKey : ''
+
+  useEffect(() => {
+    if (!weatherFetchKey) return
+
+    let active = true
+    const [latitude, longitude] = weatherFetchKey.split(',')
+    const params = new URLSearchParams({ latitude, longitude })
+
+    fetch(`/api/weather/current?${params.toString()}`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: { weather?: WeatherSnapshot | null } | null) => {
+        if (active) setCurrentWeather({ key: weatherFetchKey, weather: payload?.weather ?? null })
+      })
+      .catch(() => {
+        if (active) setCurrentWeather({ key: weatherFetchKey, weather: null })
+      })
+
+    return () => {
+      active = false
+    }
+  }, [weatherFetchKey])
+
   const maintenanceSummary = useMemo(() => {
     if (!data.maintenanceLogs.length) {
       return [{ id: 'empty', title: 'Sin historial todavía', subtitle: 'Añade tu primer mantenimiento' }]
@@ -254,6 +280,7 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
 
   const totalTravelDays = data.dailyLogs.filter((log) => log.status === 'travel').length
   const totalSpent = data.totals.overall
+  const weather = currentWeather?.key === weatherFetchKey ? currentWeather.weather : latestDaily?.weather_snapshot ?? null
   const alerts = [
     data.vehicleProfile?.inspection_due_date ? { label: 'ITV', days: daysUntil(data.vehicleProfile.inspection_due_date) } : null,
     data.vehicleProfile?.insurance_due_date ? { label: 'Seguro', days: daysUntil(data.vehicleProfile.insurance_due_date) } : null,
@@ -328,6 +355,14 @@ export default function DashboardClient({ initialData }: { initialData: Dashboar
             <div className={styles.heroMiniStat}>
               <span className={styles.heroMiniLabel}>Viajes</span>
               <strong>{totalTravelDays} dias</strong>
+            </div>
+            <div className={styles.heroMiniStat}>
+              <span className={styles.heroMiniLabel}>Tiempo</span>
+              <strong>{weather?.temperature_c !== null && weather?.temperature_c !== undefined ? `${Math.round(weather.temperature_c)}°C` : '—'}</strong>
+              <span className={styles.heroMiniMeta}>
+                <CloudSun size={14} />
+                {weather ? weather.description : 'No disponible'}
+              </span>
             </div>
           </div>
         </div>
